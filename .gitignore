@@ -41,4 +41,6 @@ yarn-error.*
 /android
 
 .env
-.env.*
+.env.local
+.env.production
+
