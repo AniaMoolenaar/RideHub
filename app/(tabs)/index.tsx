@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import {
   ScrollView,
   View,
@@ -7,14 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 
 import Hero from "../../src/components/Hero";
 import HomeSearchBar from "../../src/components/HomeSearchBar";
 import SavedTopicsGrid, { type Topic } from "../../src/components/SavedTopicsGrid";
+import ReflectionsSection from "../../src/components/ReflectionsSection";
 import JournalSection from "../../src/components/JournalSection";
 import Disclaimer from "../../src/components/Disclaimer";
+
 import { supabase } from "../../src/lib/supabase";
 import { useSavedArticleIds } from "../../src/state/articleState";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
@@ -31,23 +33,28 @@ export default function HomeScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
 
-  const [query, setQuery] = useState("");
-  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
-  const [searching, setSearching] = useState(false);
-
   const { isDark } = useAppTheme();
   const t = themeTokens(isDark);
 
+  // Search
+  const [query, setQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const showPopup = query.trim().length >= 2;
+
+  // Saved topics
   const { savedIds } = useSavedArticleIds();
   const [savedTopics, setSavedTopics] = useState<Topic[]>([]);
 
-  // saved-only grid (unchanged behaviour)
+  // -----------------------------
+  // Saved-only grid
+  // -----------------------------
   useEffect(() => {
     let alive = true;
 
     (async () => {
       if (!savedIds.length) {
-        setSavedTopics([]);
+        if (alive) setSavedTopics([]);
         return;
       }
 
@@ -59,6 +66,7 @@ export default function HomeScreen() {
       if (!alive) return;
 
       if (error) {
+        console.log("SAVED GRID ERROR:", error);
         setSavedTopics([]);
         return;
       }
@@ -82,7 +90,9 @@ export default function HomeScreen() {
     };
   }, [savedIds]);
 
-  // search popup results (google style)
+  // -----------------------------
+  // Search popup results
+  // -----------------------------
   useEffect(() => {
     let alive = true;
 
@@ -90,6 +100,7 @@ export default function HomeScreen() {
       const q = query.trim();
 
       if (q.length < 2) {
+        if (!alive) return;
         setSearchHits([]);
         setSearching(false);
         return;
@@ -101,11 +112,7 @@ export default function HomeScreen() {
         .from("articles")
         .select("id,title,tab,category")
         .or(
-          [
-            `title.ilike.%${q}%`,
-            `slug.ilike.%${q}%`,
-            `category.ilike.%${q}%`,
-          ].join(",")
+          [`title.ilike.%${q}%`, `slug.ilike.%${q}%`, `category.ilike.%${q}%`].join(",")
         )
         .limit(8);
 
@@ -127,7 +134,26 @@ export default function HomeScreen() {
     };
   }, [query]);
 
-  const showPopup = query.trim().length >= 2;
+  function openHit(hit: SearchHit) {
+    const tab = (hit.tab ?? "").toLowerCase();
+
+    if (tab === "ride") {
+      router.push({ pathname: "/ride-article/[articleId]", params: { articleId: hit.id } });
+      return;
+    }
+
+    if (tab === "maintain") {
+      router.push("/maintain-gateway");
+      return;
+    }
+
+    if (tab === "learn") {
+      router.push("/learn-gateway");
+      return;
+    }
+
+    router.push("/premium");
+  }
 
   return (
     <KeyboardAvoidingView
@@ -148,6 +174,7 @@ export default function HomeScreen() {
           subtitle="Your complete guide to motorcycle ownership"
         />
 
+        {/* SEARCH */}
         <View style={L1.relativeWrap}>
           <HomeSearchBar
             value={query}
@@ -156,28 +183,16 @@ export default function HomeScreen() {
           />
 
           {showPopup ? (
-            <View
-              style={[
-                L1.searchPopup,
-                {
-                  backgroundColor: t.pillBg,
-                  borderColor: t.pillBorder,
-                },
-              ]}
-            >
+            <View style={[L1.searchPopup, { backgroundColor: t.pillBg, borderColor: t.pillBorder }]}>
               <View style={L1.searchPopupHeader}>
                 <Text style={[L1.searchMetaText, { color: t.textMuted }]}>
                   {searching
                     ? "Searching…"
-                    : `${searchHits.length} result${
-                        searchHits.length === 1 ? "" : "s"
-                      }`}
+                    : `${searchHits.length} result${searchHits.length === 1 ? "" : "s"}`}
                 </Text>
 
                 <Pressable onPress={() => setQuery("")}>
-                  <Text style={[L1.searchClearText, { color: t.textMuted }]}>
-                    Clear
-                  </Text>
+                  <Text style={[L1.searchClearText, { color: t.textMuted }]}>Clear</Text>
                 </Pressable>
               </View>
 
@@ -189,39 +204,13 @@ export default function HomeScreen() {
                 searchHits.map((hit) => (
                   <Pressable
                     key={hit.id}
-                    onPress={() => {
-                      const tab = (hit.tab ?? "").toLowerCase();
-
-                      if (tab === "ride") {
-                        router.push({
-                          pathname: "/ride-article/[articleId]",
-                          params: { articleId: hit.id },
-                        });
-                        return;
-                      }
-
-                      if (tab === "maintain") {
-                        router.push("/maintain-gateway");
-                        return;
-                      }
-
-                      if (tab === "learn") {
-                        router.push("/learn-gateway");
-                        return;
-                      }
-
-                      router.push("/premium");
-                    }}
+                    onPress={() => openHit(hit)}
                     style={({ pressed }) => [
                       L1.hitRow,
-                      {
-                        borderTopColor: t.pillBorder,
-                        opacity: pressed ? 0.75 : 1,
-                      },
+                      { borderTopColor: t.pillBorder, opacity: pressed ? 0.75 : 1 },
                     ]}
                   >
                     <Text style={[L1.hitTitle, { color: t.text }]}>{hit.title}</Text>
-
                     <Text style={[L1.hitSub, { color: t.textMuted }]}>
                       {(hit.tab ?? "").toUpperCase()}
                       {hit.category ? ` • ${hit.category}` : ""}
@@ -230,27 +219,27 @@ export default function HomeScreen() {
                 ))
               ) : (
                 <View style={[L1.noMatchesWrap, { borderTopColor: t.pillBorder }]}>
-                  <Text style={[L1.noMatchesText, { color: t.textMuted }]}>
-                    No matches
-                  </Text>
+                  <Text style={[L1.noMatchesText, { color: t.textMuted }]}>No matches</Text>
                 </View>
               )}
             </View>
           ) : null}
         </View>
 
-        {/* SAVED ONLY GRID (unchanged) */}
+        {/* SAVED TOPICS */}
         <SavedTopicsGrid
           items={savedTopics}
           onTopicPress={(topic) =>
-            router.push({
-              pathname: "/ride-article/[articleId]",
-              params: { articleId: topic.id },
-            })
+            router.push({ pathname: "/ride-article/[articleId]", params: { articleId: topic.id } })
           }
         />
 
+        {/* REFLECTIONS (single source of truth: component only) */}
+        <ReflectionsSection />
+
+        {/* JOURNAL (make sure this stays here; do not render reflections again below) */}
         <JournalSection />
+
         <Disclaimer />
       </ScrollView>
     </KeyboardAvoidingView>
