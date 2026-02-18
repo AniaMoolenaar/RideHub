@@ -1,5 +1,7 @@
+import React from "react";
 import { ScrollView, View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 import Hero from "../../src/components/Hero";
 import Disclaimer from "../../src/components/Disclaimer";
@@ -11,9 +13,11 @@ import { L1 } from "../../src/styles/level1";
 const CURRENCY_PREFIX = "A$";
 
 export default function PremiumScreen() {
+  const router = useRouter();
+
   const { isDark } = useAppTheme();
   const t = themeTokens(isDark); // SAFE: 5 keys only
-  const d = getDesign(isDark);   // FULL design tokens
+  const d = getDesign(isDark); // FULL design tokens
 
   return (
     <View style={[L1.screen, { backgroundColor: t.screenBg }]}>
@@ -29,6 +33,38 @@ export default function PremiumScreen() {
         />
 
         <View style={styles.contentWrap}>
+          {/* 1) Maintenance Tool (Premium entry) */}
+          <Pressable
+            onPress={() => router.push("/(premium)/maintenance")}
+            style={({ pressed }) => [
+              styles.entryCard,
+              {
+                backgroundColor: t.pillBg,
+                borderColor: t.pillBorder,
+                opacity: pressed ? 0.92 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.entryTitle, { color: t.text }]}>Maintenance Tool</Text>
+            <Text style={[styles.entrySub, { color: t.textMuted }]}>
+              A calm ownership log for bikes, services, and history.
+            </Text>
+          </Pressable>
+
+          {/* 2) Crash Card (placeholder – keep your existing component/entry here) */}
+          <View
+            style={[
+              styles.entryCard,
+              { backgroundColor: t.pillBg, borderColor: t.pillBorder },
+            ]}
+          >
+            <Text style={[styles.entryTitle, { color: t.text }]}>Crash Card</Text>
+            <Text style={[styles.entrySub, { color: t.textMuted }]}>
+              Quick access to critical information if something goes wrong.
+            </Text>
+          </View>
+
+          {/* 3) Premium Pricing Info (existing pricing card) */}
           <View
             style={[
               styles.card,
@@ -135,6 +171,23 @@ const styles = StyleSheet.create({
   contentWrap: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    gap: 12,
+  },
+
+  entryCard: {
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+  },
+  entryTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  entrySub: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 
   card: {

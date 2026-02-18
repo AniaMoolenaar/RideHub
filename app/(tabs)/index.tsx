@@ -13,7 +13,6 @@ import { useRouter } from "expo-router";
 import Hero from "../../src/components/Hero";
 import HomeSearchBar from "../../src/components/HomeSearchBar";
 import SavedTopicsGrid, { type Topic } from "../../src/components/SavedTopicsGrid";
-import ReflectionsSection from "../../src/components/ReflectionsSection";
 import JournalSection from "../../src/components/JournalSection";
 import Disclaimer from "../../src/components/Disclaimer";
 
@@ -234,10 +233,6 @@ export default function HomeScreen() {
           }
         />
 
-        {/* REFLECTIONS (single source of truth: component only) */}
-        <ReflectionsSection />
-
-        {/* JOURNAL (make sure this stays here; do not render reflections again below) */}
         <JournalSection />
 
         <Disclaimer />
