@@ -45,16 +45,26 @@ export default function AddServiceScreen() {
       setError(null);
       try {
         setLoading(true);
+
         const details = await fetchBikeDetails(bikeId);
         const svc = details.services.find((s) => s.id === serviceId) as ServiceRow | undefined;
         if (!svc) throw new Error("Service not found.");
 
         setName(svc.name ?? "");
-        setIntervalType((svc.interval_type as any) ?? "distance");
-        setIntervalValue(svc.interval_value != null ? String(svc.interval_value) : "");
-        setReminderThreshold(svc.reminder_threshold != null ? String(svc.reminder_threshold) : "");
+
+        const t = (svc.interval_type as any) ?? "distance";
+        setIntervalType(t);
+
+        const interval =
+          t === "distance" ? svc.interval_distance_km : svc.interval_months;
+        setIntervalValue(interval != null ? String(interval) : "");
+
+        const reminder =
+          t === "distance" ? svc.reminder_distance_km : svc.reminder_days;
+        setReminderThreshold(reminder != null ? String(reminder) : "");
+
         setEstimatedCost(svc.estimated_cost != null ? String(svc.estimated_cost) : "");
-        setBooked(!!svc.booked);
+        setBooked(!!svc.is_booked);
       } catch (e: any) {
         setError(e?.message ?? "Failed to load service.");
       } finally {
@@ -78,9 +88,15 @@ export default function AddServiceScreen() {
     const rt = Number(reminderThreshold);
     const cost = estimatedCost.trim() ? Number(estimatedCost) : null;
 
-    if (!intervalValue.trim() || Number.isNaN(iv)) return setError("Interval value must be a number.");
-    if (!reminderThreshold.trim() || Number.isNaN(rt)) return setError("Reminder threshold must be a number.");
-    if (cost !== null && Number.isNaN(cost)) return setError("Estimated cost must be a number.");
+    if (!intervalValue.trim() || Number.isNaN(iv)) {
+      return setError("Interval value must be a number.");
+    }
+    if (!reminderThreshold.trim() || Number.isNaN(rt)) {
+      return setError("Reminder threshold must be a number.");
+    }
+    if (cost !== null && Number.isNaN(cost)) {
+      return setError("Estimated cost must be a number.");
+    }
 
     setSaving(true);
     try {
@@ -88,9 +104,14 @@ export default function AddServiceScreen() {
         bike_id: bikeId,
         service_id: isEdit ? serviceId : undefined,
         name: name.trim(),
+
         interval_type: intervalType,
+
+        // IMPORTANT: your upsertService currently expects these generic fields.
+        // We map UI -> those fields, and your API layer should map them to the real DB fields.
         interval_value: iv,
         reminder_threshold: rt,
+
         estimated_cost: cost,
         booked,
       });
@@ -113,6 +134,9 @@ export default function AddServiceScreen() {
       </View>
     );
   }
+
+  const intervalLabel = intervalType === "distance" ? "Interval (km)" : "Interval (months)";
+  const reminderLabel = intervalType === "distance" ? "Reminder (km)" : "Reminder (days)";
 
   return (
     <View style={{ flex: 1 }}>
@@ -137,7 +161,17 @@ export default function AddServiceScreen() {
           />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {filteredSuggestions.map((s) => (
-              <Pressable key={s} onPress={() => setName(s)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: "#e6e6e6" }}>
+              <Pressable
+                key={s}
+                onPress={() => setName(s)}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: "#e6e6e6",
+                }}
+              >
                 <Text style={{ fontWeight: "700", opacity: 0.85 }}>{s}</Text>
               </Pressable>
             ))}
@@ -146,15 +180,45 @@ export default function AddServiceScreen() {
 
         <Text style={{ fontWeight: "700" }}>Interval type</Text>
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <Chip selected={intervalType === "distance"} onPress={() => setIntervalType("distance")} label="Distance" />
-          <Chip selected={intervalType === "time"} onPress={() => setIntervalType("time")} label="Time" />
+          <Chip
+            selected={intervalType === "distance"}
+            onPress={() => setIntervalType("distance")}
+            label="Distance"
+          />
+          <Chip
+            selected={intervalType === "time"}
+            onPress={() => setIntervalType("time")}
+            label="Time"
+          />
         </View>
 
-        <Field label="Interval value" value={intervalValue} onChangeText={setIntervalValue} keyboardType="number-pad" />
-        <Field label="Reminder threshold" value={reminderThreshold} onChangeText={setReminderThreshold} keyboardType="number-pad" />
-        <Field label="Estimated cost (optional)" value={estimatedCost} onChangeText={setEstimatedCost} keyboardType="number-pad" />
+        <Field
+          label={intervalLabel}
+          value={intervalValue}
+          onChangeText={setIntervalValue}
+          keyboardType="number-pad"
+        />
+        <Field
+          label={reminderLabel}
+          value={reminderThreshold}
+          onChangeText={setReminderThreshold}
+          keyboardType="number-pad"
+        />
+        <Field
+          label="Estimated cost (optional)"
+          value={estimatedCost}
+          onChangeText={setEstimatedCost}
+          keyboardType="number-pad"
+        />
 
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingVertical: 8,
+          }}
+        >
           <Text style={{ fontWeight: "800" }}>Booked</Text>
           <Pressable onPress={() => setBooked((b) => !b)}>
             <Text style={{ fontWeight: "800" }}>{booked ? "Yes" : "No"}</Text>
@@ -168,7 +232,13 @@ export default function AddServiceScreen() {
         <Pressable
           onPress={onSave}
           disabled={saving}
-          style={{ padding: 14, borderRadius: 16, backgroundColor: "#111", alignItems: "center" }}
+          style={{
+            padding: 14,
+            borderRadius: 16,
+            backgroundColor: "#111",
+            alignItems: "center",
+            opacity: saving ? 0.85 : 1,
+          }}
         >
           <Text style={{ color: "white", fontWeight: "800" }}>
             {saving ? "Saving…" : "Save"}
@@ -199,7 +269,15 @@ function Field(props: any) {
   );
 }
 
-function Chip({ selected, onPress, label }: { selected: boolean; onPress: () => void; label: string }) {
+function Chip({
+  selected,
+  onPress,
+  label,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  label: string;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -212,7 +290,9 @@ function Chip({ selected, onPress, label }: { selected: boolean; onPress: () => 
         backgroundColor: selected ? "#111" : "#fff",
       }}
     >
-      <Text style={{ color: selected ? "#fff" : "#111", fontWeight: "800" }}>{label}</Text>
+      <Text style={{ color: selected ? "#fff" : "#111", fontWeight: "800" }}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

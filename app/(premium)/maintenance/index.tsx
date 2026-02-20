@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import Hero from "../../../src/components/Hero";
+import ToolHero from "../../../src/components/ToolHero";
 import AppHeader from "../../../src/components/AppHeader";
 import { useAppTheme, themeTokens } from "../../../src/theme/theme";
 import { getDesign } from "../../../src/theme/design";
@@ -94,9 +94,9 @@ export default function MaintenanceHome() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Hero
-          screen="premium"
-          title="Maintenance"
+        <ToolHero
+          screen="Maintenance-tool"
+          title="Maintenance Tool"
           subtitle="Services, reminders, and ownership history"
         />
 
@@ -142,7 +142,9 @@ export default function MaintenanceHome() {
             }
             ListEmptyComponent={
               loading ? (
-                <Text style={[styles.loadingText, { color: t.textMuted }]}>Loading…</Text>
+                <Text style={[styles.loadingText, { color: t.textMuted }]}>
+                  Loading…
+                </Text>
               ) : null
             }
             renderItem={({ item }) => (
@@ -158,8 +160,12 @@ export default function MaintenanceHome() {
                 ]}
               >
                 <View style={styles.bikeTopRow}>
-                  <Text style={[styles.bikeName, { color: t.text }]}>{item.display_name}</Text>
-                  <Text style={[styles.bikeOdo, { color: t.textMuted }]}>{item.odometer_display}</Text>
+                  <Text style={[styles.bikeName, { color: t.text }]}>
+                    {item.display_name}
+                  </Text>
+                  <Text style={[styles.bikeOdo, { color: t.textMuted }]}>
+                    {item.odometer_display}
+                  </Text>
                 </View>
 
                 <Text style={[styles.counts, { color: t.textMuted }]}>
@@ -171,7 +177,9 @@ export default function MaintenanceHome() {
                     {item.most_urgent_service_line}
                   </Text>
                 ) : (
-                  <Text style={[styles.noneLine, { color: t.textMuted }]}>No services yet</Text>
+                  <Text style={[styles.noneLine, { color: t.textMuted }]}>
+                    No services yet
+                  </Text>
                 )}
               </Pressable>
             )}

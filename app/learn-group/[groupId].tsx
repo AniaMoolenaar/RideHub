@@ -18,7 +18,6 @@ import { supabase } from "../../src/lib/supabase";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { getDesign } from "../../src/theme/design";
 import { L2 } from "../../src/styles/level2";
-import { ABSOLUTE_FILL } from "../../src/styles/common";
 
 const HEX_READ = "#f8c331";
 
@@ -284,7 +283,7 @@ export default function LearnGroupScreen() {
                   colors={[...d.goldGradient]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={ABSOLUTE_FILL}
+                  style={L2.absoluteFill}
                 />
                 <View style={L2.ctaInner}>
                   <Text style={[L2.ctaText, { color: d.goldTextOn }]}>Browse Premium Packs</Text>
