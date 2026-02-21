@@ -7,11 +7,15 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { Gauge } from "lucide-react-native";
 
 import ToolHero from "../../../../src/components/ToolHero";
+import AppHeader from "../../../../src/components/AppHeader";
 import { useAppTheme, themeTokens } from "../../../../src/theme/theme";
 import { getDesign } from "../../../../src/theme/design";
+import { L2 } from "../../../../src/styles/level2";
 
 import {
   fetchBikeDetails,
@@ -236,18 +240,21 @@ export default function BikeDetailsScreen() {
 
   if (!data) return null;
 
-  const bikeMeta =
-    [data.bike.make, data.bike.model, data.bike.year ? String(data.bike.year) : null]
-      .filter(Boolean)
-      .join(" · ") || "—";
+  const bikeMeta = `Odometer: ${Number(data.bike.odometer_value).toLocaleString()} ${
+    data.bike.unit
+  }`;
 
-  const odoDisplay = `${data.bike.odometer_value} ${data.bike.unit}`;
-  const lastUpdated = data.bike.last_odometer_at ?? "—";
+  const lastUpdatedLabel = data.bike.last_odometer_at
+    ? new Date(data.bike.last_odometer_at).toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <ScrollView
       style={{ backgroundColor: t.screenBg }}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={{ paddingBottom: 80 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
     >
@@ -255,71 +262,87 @@ export default function BikeDetailsScreen() {
         screen="Maintenance-tool"
         title={data.bike.display_name}
         subtitle={bikeMeta}
-/>
+      />
 
+      <AppHeader
+        title="Service history"
+        right={
+          <Pressable
+            onPress={() => setShowOdoInline((v) => !v)}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 999,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Gauge size={18} color={t.text} />
+          </Pressable>
+        }
+      />
 
       <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 16 }}>
-        {/* Odometer */}
-        <View
-          style={{
-            padding: 16,
-            borderRadius: 16,
-            backgroundColor: d.articleCardBg,
-            borderWidth: 1,
-            borderColor: d.articleCardBorder,
-            gap: 8,
-          }}
-        >
-          <Text style={{ fontWeight: "700", color: t.text }}>Odometer</Text>
-          <Text style={{ fontSize: 16, color: t.text }}>{odoDisplay}</Text>
-          <Text style={{ fontSize: 12, color: t.textMuted }}>
-            Last updated: {lastUpdated}
-          </Text>
+        {showOdoInline ? (
+          <View
+            style={{
+              padding: 16,
+              borderRadius: 16,
+              backgroundColor: d.articleCardBg,
+              borderWidth: 1,
+              borderColor: d.articleCardBorder,
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 12, color: t.textMuted }}>
+              Last updated: {lastUpdatedLabel}
+            </Text>
 
-          <Pressable onPress={() => setShowOdoInline((v) => !v)} style={{ paddingVertical: 10 }}>
-            <Text style={{ fontWeight: "700", color: t.text }}>Update Odometer</Text>
-          </Pressable>
+            <Input
+              value={odoDraft}
+              onChangeText={setOdoDraft}
+              placeholder={`Enter ${data.bike.unit}`}
+              t={t}
+              d={d}
+            />
 
-          {showOdoInline ? (
-            <View style={{ gap: 10 }}>
-              <Input
-                value={odoDraft}
-                onChangeText={setOdoDraft}
-                placeholder={`Enter ${data.bike.unit}`}
-                t={t}
-                d={d}
+            <Pressable
+              onPress={saveOdometer}
+              disabled={odoSaving}
+              style={({ pressed }) => [
+                L2.ctaOuter,
+                { opacity: odoSaving ? 0.85 : pressed ? 0.92 : 1 },
+              ]}
+            >
+              <LinearGradient
+                colors={[...d.goldGradient]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={L2.absoluteFill}
               />
-
-              <Pressable
-                onPress={saveOdometer}
-                disabled={odoSaving}
-                style={{
-                  padding: 12,
-                  borderRadius: 14,
-                  backgroundColor: "#111",
-                  alignItems: "center",
-                  opacity: odoSaving ? 0.85 : 1,
-                }}
-              >
-                <Text style={{ color: "#fff", fontWeight: "800" }}>
-                  {odoSaving ? "Saving…" : "Save"}
+              <View style={L2.ctaInner}>
+                <Text style={[L2.ctaText, { color: d.goldTextOn }]}>
+                  {odoSaving ? "Saving…" : "Save odometer"}
                 </Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* Add Service */}
         <Pressable
           onPress={goAddService}
-          style={{
-            padding: 14,
-            borderRadius: 16,
-            backgroundColor: "#111",
-            alignItems: "center",
-          }}
+          style={({ pressed }) => [L2.ctaOuter, { opacity: pressed ? 0.92 : 1 }]}
         >
-          <Text style={{ color: "white", fontWeight: "800" }}>Add Service</Text>
+          <LinearGradient
+            colors={[...d.goldGradient]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={L2.absoluteFill}
+          />
+          <View style={L2.ctaInner}>
+            <Text style={[L2.ctaText, { color: d.goldTextOn }]}>Add Service</Text>
+          </View>
         </Pressable>
 
         {/* Services */}
@@ -406,15 +429,13 @@ export default function BikeDetailsScreen() {
                         padding: 14,
                         borderRadius: 16,
                         backgroundColor: d.articleCardBg,
-                        borderWidth: 1,
+                        borderWidth: 0,
                         borderColor: d.articleCardBorder,
                         gap: 6,
                       }}
                     >
                       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                        <Text
-                          style={{ fontSize: 15, fontWeight: "800", flex: 1, color: t.text }}
-                        >
+                        <Text style={{ fontSize: 15, fontWeight: "800", flex: 1, color: t.text }}>
                           {item.name}
                         </Text>
                         <Text style={{ color: t.textMuted, fontWeight: "700" }}>
@@ -478,7 +499,7 @@ export default function BikeDetailsScreen() {
                 <View key={String(g.year)} style={{ gap: 8 }}>
                   <Text style={{ fontWeight: "800", color: t.textMuted }}>{g.year}</Text>
 
-                  <View style={{ gap: 8 }}>
+                  <View style={{ gap: 0 }}>
                     {g.entries.map((e: any) => {
                       const key = `${e.event_type}-${e.service_id ?? "odo"}-${e.occurred_at}`;
 
@@ -487,28 +508,34 @@ export default function BikeDetailsScreen() {
                           ? (e.service_name ?? "Service completed")
                           : "Odometer updated";
 
-                      const subtitle =
+                      const completedLine =
                         e.event_type === "service"
-                          ? (e.completed_date ?? null)
+                          ? `Completed: ${e.completed_date ?? "—"}`
                           : e.odometer_value != null
-                          ? `${e.odometer_value} ${data.bike.unit}`
-                          : null;
+                          ? `Updated: ${e.odometer_value} ${data.bike.unit}`
+                          : "Updated: —";
 
                       return (
                         <View
                           key={key}
                           style={{
-                            padding: 12,
-                            borderRadius: 14,
-                            backgroundColor: d.articleCardBg,
-                            borderWidth: 1,
-                            borderColor: d.articleCardBorder,
-                            gap: 4,
+                            flexDirection: "row",
+                            gap: 12,
+                            paddingVertical: 10,
                           }}
                         >
-                          <Text style={{ fontWeight: "800", color: t.text }}>{title}</Text>
-                          {subtitle ? <Text style={{ color: t.textMuted }}>{subtitle}</Text> : null}
-                          <Text style={{ color: t.textMuted, fontSize: 12 }}>{e.occurred_at}</Text>
+                          <View
+                            style={{
+                              width: 2,
+                              borderRadius: 2,
+                              backgroundColor: d.ownershipTimelineLine,
+                            }}
+                          />
+
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={{ fontWeight: "800", color: t.text }}>{title}</Text>
+                            <Text style={{ color: t.textMuted }}>{completedLine}</Text>
+                          </View>
                         </View>
                       );
                     })}

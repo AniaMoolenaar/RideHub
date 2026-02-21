@@ -5,6 +5,7 @@ export const lightTheme = {
   textMuted: "rgba(17,17,17,0.60)",
   pillBg: "#F2F2F2",
   pillBorder: "rgba(0,0,0,0.08)",
+  ownershipTimelineLine: "rgba(0,0,0,0.12)",
 
   // article screen values
   articleText: "rgba(17,17,17,0.86)",

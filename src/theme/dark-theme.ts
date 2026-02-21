@@ -5,6 +5,7 @@ export const darkTheme = {
   textMuted: "rgba(250,250,248,0.62)",
   pillBg: "rgba(250,250,248,0.06)",
   pillBorder: "rgba(250,250,248,0.10)",
+  ownershipTimelineLine: "#d4b463",
 
   // values currently hard-coded in Level 1/2/3 screens
   articleText: "rgba(250,250,248,0.82)",

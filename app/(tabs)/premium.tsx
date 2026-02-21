@@ -71,7 +71,7 @@ export default function PremiumScreen() {
               {
                 backgroundColor: t.pillBg,
                 borderColor: t.pillBorder,
-                borderWidth: 1,
+                borderWidth: 0,
               },
             ]}
           >
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 18,
     borderRadius: 18,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: 6,
   },
   entryTitle: {
