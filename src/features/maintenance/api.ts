@@ -22,7 +22,7 @@ export async function fetchBikeDetails(bikeId: UUID): Promise<BikeDetailsRPC> {
   return data as BikeDetailsRPC;
 }
 
-// -------- WRITES (PLACEHOLDERS - wire to your real endpoints) --------
+// -------- WRITES --------
 
 // Add Bike
 export type AddBikeInput = {
@@ -34,35 +34,37 @@ export type AddBikeInput = {
   current_odometer: number;
 };
 
-// NOTE: Replace with your actual insert/RPC.
-// This is a generic example.
 export async function addBike(input: AddBikeInput): Promise<void> {
-  // Example assumes table names; adjust to yours.
-  const { error: bikeErr } = await supabase.from("maintenance_bikes").insert({
+  const odoKm =
+    input.unit === "miles" ? input.current_odometer * 1.60934 : input.current_odometer;
+
+  const { error } = await supabase.from("maintenance_bikes").insert({
     display_name: input.display_name,
     make: input.make,
     model: input.model,
     year: input.year,
     unit: input.unit,
+    odometer_value: input.current_odometer,
+    odometer_km: odoKm,
+    last_odometer_at: new Date().toISOString(),
   });
 
-  if (bikeErr) throw bikeErr;
-
-  // If odometer is separate, you likely need to log it; swap to your real table/RPC.
-  // If your backend automatically logs initial odometer via trigger, remove this.
-  // await supabase.from("maintenance_odometer_log").insert({ bike_id, odometer_km: ... })
+  if (error) throw error;
 }
 
-// Update odometer (log entry)
+// Update odometer (updates maintenance_bikes ONLY)
 export async function logOdometer(bikeId: UUID, value: number, unit: "km" | "miles") {
-  // Replace with your actual table/RPC.
-  // If canonical km storage is required, backend should handle conversion;
-  // UI sends value in bike unit.
-  const { error } = await supabase.from("maintenance_odometer_log").insert({
-    bike_id: bikeId,
-    value,
-    unit,
-  });
+  const valueKm = unit === "miles" ? value * 1.60934 : value;
+
+  const { error } = await supabase
+    .from("maintenance_bikes")
+    .update({
+      odometer_value: value,
+      odometer_km: valueKm,
+      last_odometer_at: new Date().toISOString(),
+    })
+    .eq("id", bikeId);
+
   if (error) throw error;
 }
 
@@ -76,19 +78,19 @@ export async function setServicePinned(serviceId: UUID, pinned: boolean) {
   if (error) throw error;
 }
 
-// Mark completed
+// Mark completed (service history)
 export async function markServiceCompleted(serviceId: UUID) {
-  // Replace with your completion history insert or RPC.
-  const { error } = await supabase.from("maintenance_service_completions").insert({
-    service_id: serviceId,
-  });
+  const { error } = await supabase
+    .from("maintenance_service_history")
+    .insert({ service_id: serviceId });
+
   if (error) throw error;
 }
 
 // Add / Edit Service
 export type UpsertServiceInput = {
   bike_id: UUID;
-  service_id?: UUID; // present for edit
+  service_id?: UUID;
   name: string;
   interval_type: "distance" | "time";
   interval_value: number;
@@ -97,8 +99,7 @@ export type UpsertServiceInput = {
   booked: boolean;
 };
 
-export async function upsertService(input: UpsertServiceInput) {
-  // Replace with your real table/RPC.
+export async function upsertService(input: UpsertServiceInput): Promise<void> {
   if (input.service_id) {
     const { error } = await supabase
       .from("maintenance_services")
@@ -113,17 +114,18 @@ export async function upsertService(input: UpsertServiceInput) {
       .eq("id", input.service_id);
 
     if (error) throw error;
-  } else {
-    const { error } = await supabase.from("maintenance_services").insert({
-      bike_id: input.bike_id,
-      name: input.name,
-      interval_type: input.interval_type,
-      interval_value: input.interval_value,
-      reminder_threshold: input.reminder_threshold,
-      estimated_cost: input.estimated_cost,
-      booked: input.booked,
-    });
-
-    if (error) throw error;
+    return;
   }
+
+  const { error } = await supabase.from("maintenance_services").insert({
+    bike_id: input.bike_id,
+    name: input.name,
+    interval_type: input.interval_type,
+    interval_value: input.interval_value,
+    reminder_threshold: input.reminder_threshold,
+    estimated_cost: input.estimated_cost,
+    booked: input.booked,
+  });
+
+  if (error) throw error;
 }

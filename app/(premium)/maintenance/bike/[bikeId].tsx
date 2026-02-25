@@ -6,6 +6,7 @@ import {
   FlatList,
   ScrollView,
   RefreshControl,
+  TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -27,10 +28,7 @@ import type {
   BikeDetailsRPC,
   ServiceRow,
 } from "../../../../src/features/maintenance/types";
-import {
-  groupTimelineByYear,
-  statusLabel,
-} from "../../../../src/features/maintenance/ui";
+import { groupTimelineByYear, statusLabel } from "../../../../src/features/maintenance/ui";
 
 export default function BikeDetailsScreen() {
   const router = useRouter();
@@ -48,19 +46,28 @@ export default function BikeDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // odometer UI
+  const [showOdoInline, setShowOdoInline] = useState(false);
+  const [odoDraft, setOdoDraft] = useState("");
+  const [odoSaving, setOdoSaving] = useState(false);
+  const odoInputRef = useRef<TextInput | null>(null);
+
+  // odometer feedback pill
+  const [odoMessage, setOdoMessage] = useState<string | null>(null);
+  const [odoMessageType, setOdoMessageType] = useState<"success" | "error" | null>(null);
+
+  // services expand state
   const expandedRef = useRef<Set<string>>(new Set());
   const [expandedVersion, setExpandedVersion] = useState(0);
 
+  // busy state
   const pinBusyRef = useRef<Set<string>>(new Set());
   const completeBusyRef = useRef<Set<string>>(new Set());
   const [, forceBusyRender] = useState(0);
 
+  // refresh tracking
   const lastFetchAtRef = useRef<number>(0);
   const lastRefreshTokenRef = useRef<string | undefined>(undefined);
-
-  const [showOdoInline, setShowOdoInline] = useState(false);
-  const [odoDraft, setOdoDraft] = useState("");
-  const [odoSaving, setOdoSaving] = useState(false);
 
   const timelineGroups = useMemo(() => {
     if (!data) return [];
@@ -197,23 +204,46 @@ export default function BikeDetailsScreen() {
     [router, bikeId]
   );
 
+  const onToggleOdo = useCallback(() => {
+    setShowOdoInline((v) => !v);
+    setOdoMessage(null);
+    setOdoMessageType(null);
+  }, []);
+
   const saveOdometer = useCallback(async () => {
     if (!data) return;
 
     const n = Number(odoDraft);
     if (!odoDraft.trim() || Number.isNaN(n)) {
-      setError("Odometer must be a number.");
+      setOdoMessage("Odometer must be a number.");
+      setOdoMessageType("error");
       return;
     }
 
     setOdoSaving(true);
+    setOdoMessage(null);
+    setOdoMessageType(null);
+
     try {
+      // IMPORTANT: this must update maintenance_bikes (not history)
       await logOdometer(data.bike.id, n, data.bike.unit);
+
+      // re-fetch updated bike row
       await load();
+
+      setOdoMessage("Odometer saved.");
+      setOdoMessageType("success");
+
       setShowOdoInline(false);
       setOdoDraft("");
+
+      setTimeout(() => {
+        setOdoMessage(null);
+        setOdoMessageType(null);
+      }, 2000);
     } catch (e: any) {
-      setError(e?.message ?? "Failed to update odometer.");
+      setOdoMessage(e?.message ?? "Failed to update odometer.");
+      setOdoMessageType("error");
     } finally {
       setOdoSaving(false);
     }
@@ -257,18 +287,15 @@ export default function BikeDetailsScreen() {
       contentContainerStyle={{ paddingBottom: 80 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      <ToolHero
-        screen="Maintenance-tool"
-        title={data.bike.display_name}
-        subtitle={bikeMeta}
-      />
+      <ToolHero screen="Maintenance-tool" title={data.bike.display_name} subtitle={bikeMeta} />
 
       <AppHeader
         title="Service history"
         right={
           <Pressable
-            onPress={() => setShowOdoInline((v) => !v)}
+            onPress={onToggleOdo}
             style={{
               width: 40,
               height: 40,
@@ -298,13 +325,37 @@ export default function BikeDetailsScreen() {
               Last updated: {lastUpdatedLabel}
             </Text>
 
-            <Input
-              value={odoDraft}
-              onChangeText={setOdoDraft}
-              placeholder={`Enter ${data.bike.unit}`}
-              t={t}
-              d={d}
-            />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                borderRadius: 12,
+                borderWidth: 1,
+                paddingHorizontal: 12,
+                height: 44,
+                backgroundColor: t.pillBg,
+                borderColor: t.pillBorder,
+              }}
+            >
+              <TextInput
+                ref={odoInputRef}
+                value={odoDraft}
+                onChangeText={(txt) => {
+                  const digitsOnly = txt.replace(/[^\d]/g, "");
+                  setOdoDraft(digitsOnly);
+                }}
+                placeholder={`Enter ${data.bike.unit}`}
+                placeholderTextColor={t.textMuted}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                autoCorrect={false}
+                autoCapitalize="none"
+                editable={!odoSaving}
+                style={{ flex: 1, fontSize: 14, color: t.text }}
+                onSubmitEditing={saveOdometer}
+              />
+            </View>
 
             <Pressable
               onPress={saveOdometer}
@@ -326,6 +377,30 @@ export default function BikeDetailsScreen() {
                 </Text>
               </View>
             </Pressable>
+          </View>
+        ) : null}
+
+        {/* Odometer confirmation / error pill (same spot) */}
+        {odoMessage ? (
+          <View
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 999,
+              alignSelf: "flex-start",
+              backgroundColor: t.pillBg,
+              borderWidth: 0,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "800",
+                color: t.text,
+              }}
+            >
+              {odoMessage}
+            </Text>
           </View>
         ) : null}
 
@@ -434,8 +509,21 @@ export default function BikeDetailsScreen() {
                         gap: 6,
                       }}
                     >
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                        <Text style={{ fontSize: 15, fontWeight: "800", flex: 1, color: t.text }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          gap: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: "800",
+                            flex: 1,
+                            color: t.text,
+                          }}
+                        >
                           {item.name}
                         </Text>
                         <Text style={{ color: t.textMuted, fontWeight: "700" }}>
@@ -547,41 +635,5 @@ export default function BikeDetailsScreen() {
         </View>
       </View>
     </ScrollView>
-  );
-}
-
-/**
- * NOTE: This is still a placeholder “Input”.
- * It does not accept user typing.
- * Replace with TextInput when you’re ready.
- */
-function Input({
-  value,
-  onChangeText,
-  placeholder,
-  t,
-  d,
-}: {
-  value: string;
-  onChangeText: (t: string) => void;
-  placeholder?: string;
-  t: ReturnType<typeof themeTokens>;
-  d: ReturnType<typeof getDesign>;
-}) {
-  return (
-    <Pressable
-      onPress={() => {}}
-      style={{
-        padding: 12,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: d.articleCardBorder,
-        backgroundColor: d.articleCardBg,
-      }}
-    >
-      <Text style={{ opacity: value ? 1 : 0.6, color: t.text }}>
-        {value || placeholder || ""}
-      </Text>
-    </Pressable>
   );
 }
