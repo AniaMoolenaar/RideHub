@@ -11,7 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Menu } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Video, ResizeMode } from "expo-av";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { supabase } from "../lib/supabase";
 
 type HeroConfigRow = {
@@ -117,6 +117,15 @@ export default function Hero({
     [config]
   );
 
+  const videoPlayer = useVideoPlayer(
+    config?.media_type === "video" ? config.media_url : null,
+    (player) => {
+      player.loop = true;
+      player.muted = true;
+      player.play();
+    }
+  );
+
   return (
     <View style={[styles.outer, { height: heroHeight }]}>
       <View style={styles.inner}>
@@ -128,19 +137,14 @@ export default function Hero({
           />
         )}
 
-        {config?.media_type === "video" && (
-          <Video
-            source={{ uri: config.media_url }}
+        {config?.media_type === "video" && videoPlayer && (
+          <VideoView
+            player={videoPlayer}
             style={mediaStyle}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isLooping
-            isMuted
-            useNativeControls={false}
-            posterSource={
-              config.poster_url ? { uri: config.poster_url } : undefined
-            }
-            usePoster={!!config.poster_url}
+            nativeControls={false}
+            contentFit="cover"
+            allowsFullscreen={false}
+            allowsPictureInPicture={false}
           />
         )}
 

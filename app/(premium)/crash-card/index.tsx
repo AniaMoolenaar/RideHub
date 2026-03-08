@@ -1,5 +1,5 @@
-import CrashCardScreen from "../../../src/features/crashcard/CrashCardScreen";
+import CrashCardPinScreen from "../../../src/features/crashcard/CrashCardPinScreen";
 
 export default function CrashCardRoute() {
-  return <CrashCardScreen />;
+  return <CrashCardPinScreen />;
 }
