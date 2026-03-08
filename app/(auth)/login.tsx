@@ -23,50 +23,67 @@ export default function LoginScreen() {
 
   const fade = useState(() => new Animated.Value(1))[0];
 
+  const onBypass = () => {
+    router.replace("/(tabs)");
+  };
+
   const onLogin = async () => {
+    if (loading) return;
+
     setError(null);
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password,
-    });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
 
-    if (error) {
-      setError("Incorrect email or password.");
+      if (signInError) {
+        setError("Incorrect email or password.");
+        return;
+      }
+
+      const user = data?.user;
+      if (!user) {
+        setError("Login failed. Please try again.");
+        return;
+      }
+
+      if (!user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        setError("Please verify your email before logging in.");
+        return;
+      }
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        setError("Login worked but session was not created. Please try again.");
+        return;
+      }
+
+      router.replace("/(tabs)");
+    } catch (e) {
+      console.error("Login error:", e);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const user = data.user;
-
-    if (!user) {
-      setError("Login failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    if (!user.email_confirmed_at) {
-      await supabase.auth.signOut();
-      setError("Please verify your email before logging in.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-    router.replace("/(tabs)");
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      {/* Background image (slide 1) */}
       <Animated.Image
         source={{
           uri: "https://olibvhoibsnawrjpubuk.supabase.co/storage/v1/object/public/splash_discover_login/Discover%2001.jpg",
@@ -82,7 +99,6 @@ export default function LoginScreen() {
         resizeMode="cover"
       />
 
-      {/* Same overlay as discovery */}
       <View
         style={{
           position: "absolute",
@@ -98,13 +114,42 @@ export default function LoginScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Top-aligned content */}
         <View
           style={{
+            flex: 1,
             paddingHorizontal: 22,
             paddingTop: 60,
           }}
         >
+          <View
+            style={{
+              alignItems: "flex-end",
+              marginBottom: 10,
+            }}
+          >
+            <Pressable
+              onPress={onBypass}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+                backgroundColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: "600",
+                }}
+              >
+                Bypass
+              </Text>
+            </Pressable>
+          </View>
+
           <Text
             style={{
               color: "#fff",
@@ -134,6 +179,7 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
             placeholder="you@example.com"
             placeholderTextColor="rgba(255,255,255,0.55)"
@@ -156,6 +202,8 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
             placeholder="Your password"
             placeholderTextColor="rgba(255,255,255,0.55)"
             style={{
@@ -190,7 +238,7 @@ export default function LoginScreen() {
             }}
           >
             {loading ? (
-              <ActivityIndicator />
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={{ color: "#fff", fontSize: 15, fontWeight: "600" }}>
                 Log in

@@ -16,8 +16,8 @@ export default function PremiumScreen() {
   const router = useRouter();
 
   const { isDark } = useAppTheme();
-  const t = themeTokens(isDark); // SAFE: 5 keys only
-  const d = getDesign(isDark); // FULL design tokens
+  const t = themeTokens(isDark);
+  const d = getDesign(isDark);
 
   return (
     <View style={[L1.screen, { backgroundColor: t.screenBg }]}>
@@ -33,7 +33,6 @@ export default function PremiumScreen() {
         />
 
         <View style={styles.contentWrap}>
-          {/* 1) Maintenance Tool (Premium entry) */}
           <Pressable
             onPress={() => router.push("/(premium)/maintenance")}
             style={({ pressed }) => [
@@ -51,20 +50,23 @@ export default function PremiumScreen() {
             </Text>
           </Pressable>
 
-          {/* 2) Crash Card (placeholder – keep your existing component/entry here) */}
-          <View
-            style={[
+          <Pressable
+            onPress={() => router.push("/(premium)/crash-card")}
+            style={({ pressed }) => [
               styles.entryCard,
-              { backgroundColor: t.pillBg, borderColor: t.pillBorder },
+              {
+                backgroundColor: t.pillBg,
+                borderColor: t.pillBorder,
+                opacity: pressed ? 0.92 : 1,
+              },
             ]}
           >
             <Text style={[styles.entryTitle, { color: t.text }]}>Crash Card</Text>
             <Text style={[styles.entrySub, { color: t.textMuted }]}>
               Quick access to critical information if something goes wrong.
             </Text>
-          </View>
+          </Pressable>
 
-          {/* 3) Premium Pricing Info (existing pricing card) */}
           <View
             style={[
               styles.card,

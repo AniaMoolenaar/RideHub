@@ -18,14 +18,13 @@ type ToolHeroScreen =
   | "maintain"
   | "premium"
   | "menu"
-  | "Maintenance-tool";
+  | "Maintenance-tool"
+  | "Crash-Card";
 
 type Props = {
   title?: string;
   subtitle?: string;
-
   screen: ToolHeroScreen;
-
   height?: number;
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Image,
@@ -11,10 +11,22 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Menu } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Video, ResizeMode } from "expo-av";
 import { supabase } from "../lib/supabase";
 
+type HeroConfigRow = {
+  media_type: "image" | "video" | null;
+  media_url: string | null;
+  poster_url: string | null;
+  offset_y: number | null;
+  offset_x: number | null;
+  scale: number | null;
+};
+
 type HeroConfig = {
-  image_url: string;
+  media_type: "image" | "video";
+  media_url: string;
+  poster_url: string | null;
   offset_y: number;
   offset_x: number;
   scale: number;
@@ -25,11 +37,23 @@ type Props = {
   subtitle?: string;
   variant?: "home" | "default";
   screen: "home" | "ride" | "learn" | "maintain" | "premium" | "menu";
-
   onPressMenu?: () => void;
   showSparkles?: boolean;
   onPressSparkles?: () => void;
 };
+
+function normaliseHeroConfig(row: HeroConfigRow | null): HeroConfig | null {
+  if (!row?.media_url) return null;
+
+  return {
+    media_type: row.media_type === "video" ? "video" : "image",
+    media_url: row.media_url,
+    poster_url: row.poster_url ?? null,
+    offset_y: typeof row.offset_y === "number" ? row.offset_y : 0,
+    offset_x: typeof row.offset_x === "number" ? row.offset_x : 0,
+    scale: typeof row.scale === "number" && row.scale > 0 ? row.scale : 1,
+  };
+}
 
 export default function Hero({
   title,
@@ -47,19 +71,30 @@ export default function Hero({
   const [config, setConfig] = useState<HeroConfig | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    let isActive = true;
 
-    supabase
-      .from("hero_images")
-      .select("image_url, offset_y, offset_x, scale")
-      .eq("screen", screen)
-      .single()
-      .then(({ data }) => {
-        if (mounted && data) setConfig(data);
-      });
+    async function loadHero() {
+      const { data, error } = await supabase
+        .from("hero_images")
+        .select("media_type, media_url, poster_url, offset_y, offset_x, scale")
+        .eq("screen", screen)
+        .single<HeroConfigRow>();
+
+      if (!isActive) return;
+
+      if (error) {
+        console.error("Failed to load hero config:", error);
+        setConfig(null);
+        return;
+      }
+
+      setConfig(normaliseHeroConfig(data));
+    }
+
+    loadHero();
 
     return () => {
-      mounted = false;
+      isActive = false;
     };
   }, [screen]);
 
@@ -68,23 +103,44 @@ export default function Hero({
     router.push("/menu/menu");
   };
 
+  const mediaStyle = useMemo(
+    () => [
+      styles.media,
+      {
+        transform: [
+          { translateX: config?.offset_x ?? 0 },
+          { translateY: config?.offset_y ?? 0 },
+          { scale: config?.scale ?? 1 },
+        ],
+      },
+    ],
+    [config]
+  );
+
   return (
     <View style={[styles.outer, { height: heroHeight }]}>
       <View style={styles.inner}>
-        {config && (
+        {config?.media_type === "image" && (
           <Image
-            source={{ uri: config.image_url }}
+            source={{ uri: config.media_url }}
             resizeMode="cover"
-            style={[
-              styles.image,
-              {
-                transform: [
-                  { translateX: config.offset_x },
-                  { translateY: config.offset_y },
-                  { scale: config.scale },
-                ],
-              },
-            ]}
+            style={mediaStyle}
+          />
+        )}
+
+        {config?.media_type === "video" && (
+          <Video
+            source={{ uri: config.media_url }}
+            style={mediaStyle}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isLooping
+            isMuted
+            useNativeControls={false}
+            posterSource={
+              config.poster_url ? { uri: config.poster_url } : undefined
+            }
+            usePoster={!!config.poster_url}
           />
         )}
 
@@ -98,7 +154,6 @@ export default function Hero({
           style={StyleSheet.absoluteFill}
         />
 
-        {/* Top bar */}
         <View style={[styles.topRow, { paddingTop: topPad }]}>
           <View style={styles.topSlot}>
             <Pressable hitSlop={12} onPress={openMenu} style={styles.iconBtn}>
@@ -112,7 +167,6 @@ export default function Hero({
             </View>
           </View>
 
-          {/* sparkles removed */}
           <View style={styles.topSlot}>
             <View style={{ width: 38, height: 38 }} />
           </View>
@@ -144,9 +198,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#000",
   },
-  inner: { flex: 1 },
+  inner: {
+    flex: 1,
+  },
 
-  image: {
+  media: {
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "110%",
@@ -168,7 +224,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  centerSlot: { flex: 1 },
+
+  centerSlot: {
+    flex: 1,
+  },
 
   iconBtn: {
     padding: 8,
@@ -181,7 +240,9 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 6 },
       },
-      android: { elevation: 0 },
+      android: {
+        elevation: 0,
+      },
     }),
   },
 
@@ -191,6 +252,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 2,
   },
+
   logoText: {
     color: "#fff",
     letterSpacing: 3,
@@ -206,6 +268,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 20,
   },
+
   title: {
     color: "#fff",
     fontSize: 26,
@@ -213,6 +276,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
+
   subtitle: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 14,
