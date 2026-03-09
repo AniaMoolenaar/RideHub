@@ -1,23 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import ToolHero from "../../components/ToolHero";
 import AppHeader from "../../components/AppHeader";
 import { useAppTheme, themeTokens } from "../../theme/theme";
+import { getDesign } from "../../theme/design";
+import { L2 } from "../../styles/level2";
 import { hasPin, savePin, verifyPin } from "./pinStorage";
 
-const MAX_PIN_LENGTH = 6;
+const PIN_LENGTH = 4;
 
 export default function CrashCardPinScreen() {
   const router = useRouter();
+  const { reset } = useLocalSearchParams<{ reset?: string }>();
   const { isDark } = useAppTheme();
   const t = themeTokens(isDark);
+  const d = getDesign(isDark);
 
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(true);
   const [pinExists, setPinExists] = useState(false);
-  const [setupStep, setSetupStep] = useState<"idle" | "create" | "confirm">("idle");
+  const [setupStep, setSetupStep] = useState<"create" | "confirm" | null>(null);
   const [firstPin, setFirstPin] = useState("");
 
   useEffect(() => {
@@ -27,7 +32,16 @@ export default function CrashCardPinScreen() {
       try {
         const exists = await hasPin();
         if (!active) return;
-        setPinExists(exists);
+
+        const shouldForceResetFlow = reset === "1";
+
+        if (exists && !shouldForceResetFlow) {
+          setPinExists(true);
+          setSetupStep(null);
+        } else {
+          setPinExists(false);
+          setSetupStep("create");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -38,11 +52,11 @@ export default function CrashCardPinScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reset]);
 
   const dots = useMemo(
     () =>
-      Array.from({ length: MAX_PIN_LENGTH }, (_, i) => ({
+      Array.from({ length: PIN_LENGTH }, (_, i) => ({
         key: String(i),
         filled: i < pin.length,
       })),
@@ -52,21 +66,21 @@ export default function CrashCardPinScreen() {
   const title = useMemo(() => {
     if (loading) return "Crash Card";
     if (pinExists) return "Enter PIN";
-    if (setupStep === "create") return "Create PIN";
-    if (setupStep === "confirm") return "Confirm PIN";
-    return "Crash Card";
+    if (setupStep === "confirm") return "Verify PIN";
+    return "Enter new PIN";
   }, [loading, pinExists, setupStep]);
 
-  const secondaryLabel = useMemo(() => {
-    if (loading) return "";
-    if (pinExists) return "";
-    if (setupStep === "idle") return "Set up PIN";
-    return "";
-  }, [loading, pinExists, setupStep]);
+  const buttonLabel = useMemo(() => {
+    if (pinExists) return "Continue";
+    if (setupStep === "confirm") return "Verify PIN";
+    return "Set up PIN";
+  }, [pinExists, setupStep]);
+
+  const canContinue = pin.length === PIN_LENGTH;
 
   const onPressDigit = (digit: string) => {
     setPin((current) => {
-      if (current.length >= MAX_PIN_LENGTH) return current;
+      if (current.length >= PIN_LENGTH) return current;
       return current + digit;
     });
   };
@@ -75,22 +89,18 @@ export default function CrashCardPinScreen() {
     setPin((current) => current.slice(0, -1));
   };
 
-  const resetEntry = () => {
-    setPin("");
-  };
-
   const onContinue = async () => {
-    if (pin.length < 4) return;
+    if (!canContinue) return;
 
     if (pinExists) {
       const ok = await verifyPin(pin);
       if (!ok) {
         Alert.alert("Incorrect PIN", "That PIN does not match this device.");
-        resetEntry();
+        setPin("");
         return;
       }
 
-      resetEntry();
+      setPin("");
       router.push("/(premium)/crash-card/home");
       return;
     }
@@ -104,7 +114,7 @@ export default function CrashCardPinScreen() {
 
     if (setupStep === "confirm") {
       if (pin !== firstPin) {
-        Alert.alert("PINs do not match", "Please start again.");
+        Alert.alert("PINs do not match", "Please try again.");
         setPin("");
         setFirstPin("");
         setSetupStep("create");
@@ -112,19 +122,18 @@ export default function CrashCardPinScreen() {
       }
 
       await savePin(pin);
-      setPinExists(true);
-      setSetupStep("idle");
-      setFirstPin("");
       setPin("");
+      setFirstPin("");
+      setSetupStep(null);
+      setPinExists(true);
+
       Alert.alert("PIN saved", "Crash Card is now protected on this device.");
       return;
     }
   };
 
-  const onSetupPin = () => {
-    setPin("");
-    setFirstPin("");
-    setSetupStep("create");
+  const onForgotPin = () => {
+    router.push("/(premium)/crash-card/forgot-pin");
   };
 
   return (
@@ -214,29 +223,29 @@ export default function CrashCardPinScreen() {
 
           <Pressable
             onPress={onContinue}
-            disabled={loading || pin.length < 4 || (!pinExists && setupStep === "idle")}
+            disabled={loading || !canContinue}
             style={({ pressed }) => [
-              styles.continueButton,
+              L2.ctaOuter,
               {
-                opacity:
-                  loading || pin.length < 4 || (!pinExists && setupStep === "idle")
-                    ? 0.45
-                    : pressed
-                    ? 0.9
-                    : 1,
+                marginTop: 18,
+                opacity: loading || !canContinue ? 0.4 : pressed ? 0.92 : 1,
               },
             ]}
           >
-            <Text style={[styles.continueText, { color: t.text }]}>
-              {pinExists ? "Continue" : setupStep === "confirm" ? "Save PIN" : "Continue"}
-            </Text>
+            <LinearGradient
+              colors={[...d.goldGradient]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={L2.absoluteFill}
+            />
+            <View style={L2.ctaInner}>
+              <Text style={[L2.ctaText, { color: d.goldTextOn }]}>{buttonLabel}</Text>
+            </View>
           </Pressable>
 
-          {!!secondaryLabel && (
-            <Pressable onPress={onSetupPin}>
-              <Text style={[styles.secondaryAction, { color: t.textMuted }]}>
-                {secondaryLabel}
-              </Text>
+          {pinExists && (
+            <Pressable onPress={onForgotPin} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
+              <Text style={[styles.secondaryAction, { color: t.textMuted }]}>Forgot PIN</Text>
             </Pressable>
           )}
         </View>
@@ -262,7 +271,7 @@ const styles = StyleSheet.create({
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 10,
+    gap: 12,
     marginTop: 20,
     marginBottom: 22,
   },
@@ -288,21 +297,11 @@ const styles = StyleSheet.create({
   },
   keyPlaceholder: {
     width: "32%",
-    height: 50,
+    height: 60,
   },
   keyText: {
     fontSize: 22,
     fontWeight: "700",
-  },
-  continueButton: {
-    marginTop: 16,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  continueText: {
-    fontSize: 14,
-    fontWeight: "800",
   },
   secondaryAction: {
     marginTop: 10,
