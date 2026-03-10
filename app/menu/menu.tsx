@@ -27,11 +27,6 @@ import {
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { supabase } from "../../src/lib/supabase";
 
-// Supabase Storage source (bucket + path)
-const PROFILE_IMAGE_BUCKET = "profile images";
-const PROFILE_IMAGE_PATH = "nick-van-der-vegt-4ldc6lB9oBw-unsplash.jpg";
-
-// Fallback (only used if getPublicUrl fails or returns empty)
 const FALLBACK_PROFILE_IMAGE =
   "https://olibvhoibsnawrjpubuk.supabase.co/storage/v1/object/public/profile%20images/nick-van-der-vegt-4ldc6lB9oBw-unsplash.jpg";
 
@@ -243,25 +238,43 @@ export default function MenuScreen() {
   const [packsOwned, setPacksOwned] = useState(0);
   const [packsTotal, setPacksTotal] = useState(3);
 
-  // Notifications toggle (local only)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  // profile image URL pulled from Storage bucket (public URL generated at runtime)
   const [profileImageUrl, setProfileImageUrl] = useState<string>(
     FALLBACK_PROFILE_IMAGE
   );
 
   useEffect(() => {
-    const { data } = supabase.storage
-      .from(PROFILE_IMAGE_BUCKET)
-      .getPublicUrl(PROFILE_IMAGE_PATH);
+    let mounted = true;
 
-    const url = data?.publicUrl;
-    if (typeof url === "string" && url.length > 0) {
-      setProfileImageUrl(url);
-    } else {
-      setProfileImageUrl(FALLBACK_PROFILE_IMAGE);
+    async function loadMenuImage() {
+      try {
+        const { data, error } = await supabase
+          .from("hero_images")
+          .select("image_url")
+          .eq("screen", "menu")
+          .single();
+
+        if (error) throw error;
+
+        const url = data?.image_url;
+        if (mounted && typeof url === "string" && url.length > 0) {
+          setProfileImageUrl(url);
+        } else if (mounted) {
+          setProfileImageUrl(FALLBACK_PROFILE_IMAGE);
+        }
+      } catch {
+        if (mounted) {
+          setProfileImageUrl(FALLBACK_PROFILE_IMAGE);
+        }
+      }
     }
+
+    loadMenuImage();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -292,7 +305,6 @@ export default function MenuScreen() {
           setCountry(profile.country ?? "");
         }
       } catch {
-        // keep local state if anything fails
       } finally {
         if (mounted) setLoadingProfile(false);
       }
@@ -319,7 +331,6 @@ export default function MenuScreen() {
           return;
         }
 
-        // Total articles
         const { count: totalArticlesCount, error: totalArticlesErr } =
           await supabase
             .from("articles")
@@ -329,7 +340,6 @@ export default function MenuScreen() {
           if (mounted) setArticlesTotal(totalArticlesCount);
         }
 
-        // Read articles for user
         const { count: readCount, error: readErr } = await supabase
           .from("user_article_state")
           .select("id", { count: "exact", head: true })
@@ -340,7 +350,6 @@ export default function MenuScreen() {
           if (mounted) setArticlesRead(readCount);
         }
 
-        // Groups total
         const { count: groupsCount, error: groupsErr } = await supabase
           .from("groups")
           .select("id", { count: "exact", head: true });
@@ -349,7 +358,6 @@ export default function MenuScreen() {
           if (mounted) setGroupsTotal(groupsCount);
         }
 
-        // Groups finished (A): all articles in group are read
         const { data: allArticles, error: allArticlesErr } = await supabase
           .from("articles")
           .select("id, group_id");
@@ -391,7 +399,6 @@ export default function MenuScreen() {
           }
         }
 
-        // Packs owned from profiles booleans
         const { data: packProfile, error: packProfErr } = await supabase
           .from("profiles")
           .select("has_ride, has_maintain, has_learn")
@@ -415,7 +422,6 @@ export default function MenuScreen() {
           }
         }
       } catch {
-        // keep existing state on failure
       } finally {
         if (mounted) setProgressLoading(false);
       }
@@ -449,7 +455,6 @@ export default function MenuScreen() {
 
       setGuestExpanded(false);
     } catch {
-      // no UI changes requested on error
     } finally {
       setSavingProfile(false);
     }
@@ -481,7 +486,6 @@ export default function MenuScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
@@ -498,7 +502,6 @@ export default function MenuScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Tall profile tile */}
         <View
           style={[
             styles.guestTile,
@@ -539,7 +542,6 @@ export default function MenuScreen() {
           </View>
         </View>
 
-        {/* Profile editing */}
         {guestExpanded ? (
           <View
             style={[
@@ -625,7 +627,6 @@ export default function MenuScreen() {
           </View>
         ) : null}
 
-        {/* Progress */}
         <View style={styles.progressRow}>
           <ProgressTile
             label="Articles read"
@@ -650,7 +651,6 @@ export default function MenuScreen() {
           />
         </View>
 
-        {/* Preferences */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
           Preferences
         </Text>
@@ -691,7 +691,6 @@ export default function MenuScreen() {
           }
         />
 
-        {/* Library */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
           Library
         </Text>
@@ -705,7 +704,6 @@ export default function MenuScreen() {
           onPress={() => router.push("/menu/reading-status")}
         />
 
-        {/* Settings */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
           Settings
         </Text>

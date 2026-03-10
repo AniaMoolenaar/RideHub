@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RideHub",
-    "slug": "RideHub",
+    "slug": "ridehub",
     "scheme": "ridehub",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,17 +17,13 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": [
-        "INTERNET",
-        "INTERNET"
-      ],
+      "permissions": ["INTERNET"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.RideHub"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +36,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c773a37c-4309-4988-bbe5-5a357f0aaab9"
+        "projectId": "d43c30cd-c7c8-48d6-b9f7-69c433dc7aa4"
       }
     }
   }

@@ -46,11 +46,11 @@ export default function Index() {
   const didNavigateRef = useRef(false);
   const isAdvancingRef = useRef(false);
 
-  const progress = useRef(new Animated.Value(0)).current; // splash->discover
+  const progress = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
-  const slideFade = useRef(new Animated.Value(1)).current; // text fade
-  const bgFade = useRef(new Animated.Value(0)).current; // next bg fade-in
+  const slideFade = useRef(new Animated.Value(1)).current;
+  const bgFade = useRef(new Animated.Value(0)).current;
 
   const [currentBgUrl, setCurrentBgUrl] = useState<string | null>(null);
   const [nextBgUrl, setNextBgUrl] = useState<string | null>(null);
@@ -99,100 +99,93 @@ export default function Index() {
 
   const openUrl = async (url?: string) => {
     if (!url) return;
-    if (await Linking.canOpenURL(url)) Linking.openURL(url);
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    }
   };
 
   const onDevQuickLogin = async () => {
     if (devLoginLoading) return;
 
-const DEV_EMAIL = "zaczek.ak@gmail.com";
-const DEV_PASSWORD = "Ania12568";
+    console.log("DEV_PASSWORD_RUNTIME:", DEV_PASSWORD);
 
-// ...
-const onDevQuickLogin = async () => {
-  console.log("DEV_PASSWORD_RUNTIME:", DEV_PASSWORD);
-
-  if (!DEV_PASSWORD || DEV_PASSWORD === "Ania12568") {
-    console.log("DEV QUICK LOGIN: set DEV_PASSWORD in index.tsx locally.");
-    return;
-  }
-
-  // ... rest of login
-};
-
-
+    if (!DEV_PASSWORD || DEV_PASSWORD === "Ania12568") {
+      console.log("DEV QUICK LOGIN: using local DEV_PASSWORD from index.tsx");
+    }
 
     setDevLoginLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: DEV_EMAIL.trim(),
-      password: DEV_PASSWORD,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: DEV_EMAIL.trim(),
+        password: DEV_PASSWORD,
+      });
 
-    if (error) {
-      console.log("DEV QUICK LOGIN ERROR:", error);
+      if (error) {
+        console.log("DEV QUICK LOGIN ERROR:", error);
+        return;
+      }
+
+      const user = data.user;
+
+      if (!user) {
+        console.log("DEV QUICK LOGIN: no user returned");
+        return;
+      }
+
+      if (!user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        console.log("DEV QUICK LOGIN: email not verified");
+        return;
+      }
+
+      router.replace("/(tabs)");
+    } finally {
       setDevLoginLoading(false);
-      return;
     }
-
-    const user = data.user;
-
-    if (!user) {
-      console.log("DEV QUICK LOGIN: no user returned");
-      setDevLoginLoading(false);
-      return;
-    }
-
-    // Enforce email verification (same rule as login screen)
-    if (!user.email_confirmed_at) {
-      await supabase.auth.signOut();
-      console.log("DEV QUICK LOGIN: email not verified");
-      setDevLoginLoading(false);
-      return;
-    }
-
-    setDevLoginLoading(false);
-    router.replace("/(tabs)");
   };
 
-  // Fetch session + entry screens
   useEffect(() => {
     let alive = true;
 
     const fetchData = async () => {
-      const sessionRes = await supabase.auth.getSession();
-      const entryRes = await supabase
-        .from("entry_screens")
-        .select("id,screen,slide_no,sort_order,image_url,headline,body");
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const entryRes = await supabase
+          .from("entry_screens")
+          .select("id,screen,slide_no,sort_order,image_url,headline,body");
 
-      if (!alive) return;
+        if (!alive) return;
 
-      setSessionExists(!!sessionRes.data?.session);
+        setSessionExists(!!sessionRes.data?.session);
 
-      if (!entryRes.error) {
-        const rows = (entryRes.data ?? []) as EntryRow[];
+        if (!entryRes.error) {
+          const rows = (entryRes.data ?? []) as EntryRow[];
 
-        const splash = rows
-          .filter((r) => (r.screen ?? "").toLowerCase() === "splash")
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
+          const splash = rows
+            .filter((r) => (r.screen ?? "").toLowerCase() === "splash")
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
 
-        const discover = rows
-          .filter((r) => (r.screen ?? "").toLowerCase() === "discover")
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          const discover = rows
+            .filter((r) => (r.screen ?? "").toLowerCase() === "discover")
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-        const splashUrl = splash?.image_url ?? null;
+          const splashUrl = splash?.image_url ?? null;
 
-        setSplashImageUrl(splashUrl);
-        setDiscoverSlides(discover);
+          setSplashImageUrl(splashUrl);
+          setDiscoverSlides(discover);
 
-        // Ensure splash background is the first background requested
-        if (!currentBgUrl) {
-          setCurrentBgReady(false);
-          setCurrentBgUrl(splashUrl);
+          if (!currentBgUrl) {
+            setCurrentBgReady(false);
+            setCurrentBgUrl(splashUrl);
+          }
+        }
+      } finally {
+        if (alive) {
+          setLoading(false);
         }
       }
-
-      setLoading(false);
     };
 
     fetchData();
@@ -200,10 +193,8 @@ const onDevQuickLogin = async () => {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentBgUrl]);
 
-  // Pulse on splash only
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -222,13 +213,15 @@ const onDevQuickLogin = async () => {
       ])
     );
 
-    if (phase === "splash") loop.start();
-    else loop.stop();
+    if (phase === "splash") {
+      loop.start();
+    } else {
+      loop.stop();
+    }
 
     return () => loop.stop();
   }, [phase, pulse]);
 
-  // Splash → discover (logo moves + discover fades in)
   useEffect(() => {
     const t = setTimeout(() => {
       setPhase("transition");
@@ -243,23 +236,18 @@ const onDevQuickLogin = async () => {
     return () => clearTimeout(t);
   }, [progress]);
 
-  // When we hit discover, crossfade background to first discover slide (if different)
   useEffect(() => {
     if (phase !== "discover") return;
 
     const firstUrl = getSlideBg(0);
     if (!firstUrl) return;
-
     if (currentBgUrl && currentBgUrl === firstUrl) return;
 
-    // Prepare next bg; fade it in only after it loads.
     setNextBgReady(false);
     bgFade.setValue(0);
     setNextBgUrl(firstUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Navigation to tabs if logged in (push so app stays in Recents in standalone builds)
   useEffect(() => {
     if (phase === "splash") return;
     if (loading) return;
@@ -270,7 +258,6 @@ const onDevQuickLogin = async () => {
     router.push("/(tabs)");
   }, [phase, loading, sessionExists, router]);
 
-  // Complete a background crossfade once next bg is ready
   useEffect(() => {
     if (!nextBgUrl) return;
     if (!nextBgReady) return;
@@ -282,20 +269,17 @@ const onDevQuickLogin = async () => {
       easing: Easing.inOut(Easing.quad),
       useNativeDriver: true,
     }).start(() => {
-      // IMPORTANT: keep next layer mounted briefly to avoid flash on some devices
       const committedUrl = nextBgUrl;
 
       setCurrentBgUrl(committedUrl);
       setCurrentBgReady(true);
 
       setTimeout(() => {
-        // Only clear if it’s still the same one we committed
         setNextBgUrl((prev) => (prev === committedUrl ? null : prev));
         setNextBgReady(false);
         bgFade.setValue(0);
       }, 120);
 
-      // If we were advancing a slide, fade text back in after bg commit
       if (isAdvancingRef.current) {
         Animated.timing(slideFade, {
           toValue: 1,
@@ -307,10 +291,8 @@ const onDevQuickLogin = async () => {
         });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextBgReady, nextBgUrl]);
+  }, [nextBgReady, nextBgUrl, bgFade, slideFade]);
 
-  // Auto-advance slides every 7 seconds with smooth text + bg transitions
   useEffect(() => {
     if (phase !== "discover") return;
     if (slides.length <= 1) return;
@@ -331,7 +313,6 @@ const onDevQuickLogin = async () => {
       }).start(() => {
         setActiveSlide(nextIndex);
 
-        // If bg changes, crossfade it; text fades back in when bg commit completes.
         if (nextUrl && currentBgUrl !== nextUrl) {
           setNextBgReady(false);
           bgFade.setValue(0);
@@ -339,7 +320,6 @@ const onDevQuickLogin = async () => {
           return;
         }
 
-        // No bg change: fade text back in immediately
         Animated.timing(slideFade, {
           toValue: 1,
           duration: 750,
@@ -352,15 +332,13 @@ const onDevQuickLogin = async () => {
     }, 7000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, slides.length, activeSlide, currentBgUrl]);
+  }, [phase, slides.length, activeSlide, currentBgUrl, slideFade, bgFade]);
 
   const bgReadyForSplash = !!currentBgUrl && currentBgReady;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <View style={{ flex: 1 }}>
-        {/* Current background */}
         {currentBgUrl ? (
           <Animated.Image
             source={{ uri: currentBgUrl }}
@@ -379,7 +357,6 @@ const onDevQuickLogin = async () => {
           />
         ) : null}
 
-        {/* Next background (crossfade in) */}
         {nextBgUrl ? (
           <Animated.Image
             source={{ uri: nextBgUrl }}
@@ -398,7 +375,6 @@ const onDevQuickLogin = async () => {
           />
         ) : null}
 
-        {/* Overlay */}
         <View
           style={{
             position: "absolute",
@@ -410,14 +386,12 @@ const onDevQuickLogin = async () => {
           }}
         />
 
-        {/* Ensure bg + logo appear together */}
         {!bgReadyForSplash ? (
           <View style={{ flex: 1, justifyContent: "center" }}>
             <ActivityIndicator />
           </View>
         ) : null}
 
-        {/* Logo */}
         {bgReadyForSplash ? (
           <Animated.View
             style={{
@@ -452,7 +426,6 @@ const onDevQuickLogin = async () => {
           </Animated.View>
         ) : null}
 
-        {/* DEV quick login button (top-right) */}
         {bgReadyForSplash ? (
           <View
             pointerEvents="box-none"
@@ -490,7 +463,6 @@ const onDevQuickLogin = async () => {
           </View>
         ) : null}
 
-        {/* Discover content */}
         {bgReadyForSplash ? (
           <Animated.View
             style={{ flex: 1, opacity: discoverOpacity }}

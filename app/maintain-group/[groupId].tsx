@@ -14,7 +14,13 @@ import { Bookmark, CheckCircle } from "lucide-react-native";
 import Hero from "../../src/components/Hero";
 import Disclaimer from "../../src/components/Disclaimer";
 import AppHeader from "../../src/components/AppHeader";
-import { supabase } from "../../src/lib/supabase";
+import {
+  fetchCurrentUser,
+  fetchGroup,
+  fetchGroupArticles,
+  fetchProfileEntitlements,
+  fetchUserArticleState,
+} from "../../src/features/content/api";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { getDesign } from "../../src/theme/design";
 import { L2 } from "../../src/styles/level2";
@@ -33,19 +39,6 @@ type ArticleRow = {
   title: string;
   subheading: string | null;
   summary: string | null;
-  is_read: boolean;
-  is_saved: boolean;
-};
-
-type ProfileEntitlements = {
-  is_premium: boolean;
-  has_ride: boolean;
-  has_maintain: boolean;
-  has_learn: boolean;
-};
-
-type ArticleStateRow = {
-  article_id: string;
   is_read: boolean;
   is_saved: boolean;
 };
@@ -84,143 +77,108 @@ export default function MaintainGroupScreen() {
         setError(null);
         setLocked(false);
 
-        const { data: groupData, error: groupErr } = await supabase
-          .from("groups")
-          .select("id,title,description,is_premium")
-          .eq("id", groupId)
-          .eq("is_published", true)
-          .maybeSingle();
+        try {
+          const groupData = await fetchGroup(groupId);
 
-        if (!alive) return;
+          if (!alive) return;
 
-        if (groupErr || !groupData) {
-          setError(groupErr?.message ?? "Group not found.");
+          if (!groupData) {
+            setError("Group not found.");
+            setGroup(null);
+            setArticles([]);
+            setLoading(false);
+            return;
+          }
+
+          const normalizedGroup: GroupRow = {
+            id: groupData.id,
+            title: groupData.title,
+            description: groupData.description ?? null,
+            is_premium: !!groupData.is_premium,
+          };
+
+          setGroup(normalizedGroup);
+
+          const articleData = await fetchGroupArticles(groupId, "maintain");
+
+          if (!alive) return;
+
+          const baseArticles: ArticleRow[] = articleData.map((a) => ({
+            id: a.id,
+            title: a.title,
+            subheading: a.subheading ?? null,
+            summary: a.summary ?? null,
+            is_read: false,
+            is_saved: false,
+          }));
+
+          if (normalizedGroup.is_premium) {
+            const user = await fetchCurrentUser();
+
+            if (!alive) return;
+
+            if (!user) {
+              setLocked(true);
+              setArticles(baseArticles);
+              setLoading(false);
+              return;
+            }
+
+            const profile = await fetchProfileEntitlements(user.id);
+
+            if (!alive) return;
+
+            if (!profile || !profile.has_maintain) {
+              setLocked(true);
+              setArticles(baseArticles);
+              setLoading(false);
+              return;
+            }
+          }
+
+          const user = await fetchCurrentUser();
+
+          if (!alive) return;
+
+          if (!user) {
+            setArticles(baseArticles);
+            setLoading(false);
+            return;
+          }
+
+          const ids = baseArticles.map((a) => a.id);
+          const stateRows = await fetchUserArticleState(user.id, ids);
+
+          if (!alive) return;
+
+          const stateMap = new Map<string, { is_read: boolean; is_saved: boolean }>();
+
+          for (const r of stateRows) {
+            stateMap.set(r.article_id, {
+              is_read: !!r.is_read,
+              is_saved: !!r.is_saved,
+            });
+          }
+
+          setArticles(
+            baseArticles.map((a) => {
+              const s = stateMap.get(a.id);
+              return {
+                ...a,
+                is_read: s?.is_read ?? false,
+                is_saved: s?.is_saved ?? false,
+              };
+            })
+          );
+
+          setLoading(false);
+        } catch (e: any) {
+          if (!alive) return;
+          setError(e?.message ?? "Failed to load group.");
           setGroup(null);
           setArticles([]);
           setLoading(false);
-          return;
         }
-
-        const normalizedGroup: GroupRow = {
-          ...groupData,
-          is_premium: !!groupData.is_premium,
-        };
-
-        setGroup(normalizedGroup);
-
-        const { data: articleData, error: articleErr } = await supabase
-          .from("articles")
-          .select("id,title,subheading,summary")
-          .eq("group_id", groupId)
-          .eq("tab", "maintain")
-          .eq("is_published", true)
-          .order("sort_order", { ascending: true });
-
-        if (!alive) return;
-
-        if (articleErr) {
-          setError(articleErr.message);
-          setArticles([]);
-          setLoading(false);
-          return;
-        }
-
-        const baseArticles: ArticleRow[] = (articleData ?? []).map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          subheading: a.subheading ?? null,
-          summary: a.summary ?? null,
-          is_read: false,
-          is_saved: false,
-        }));
-
-        // Premium lock check (existing behaviour)
-        if (normalizedGroup.is_premium) {
-          const {
-            data: { user },
-            error: userErr,
-          } = await supabase.auth.getUser();
-
-          if (!alive) return;
-
-          if (userErr || !user) {
-            setLocked(true);
-            setArticles(baseArticles);
-            setLoading(false);
-            return;
-          }
-
-          const { data: p, error: pErr } = await supabase
-            .from("profiles")
-            .select("is_premium, has_ride, has_maintain, has_learn")
-            .eq("id", user.id)
-            .single();
-
-          if (!alive) return;
-
-          if (pErr || !p) {
-            setLocked(true);
-            setArticles(baseArticles);
-            setLoading(false);
-            return;
-          }
-
-          const profile = p as ProfileEntitlements;
-
-          if (!profile.has_maintain) {
-            setLocked(true);
-            setArticles(baseArticles);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Read/Saved state (refreshes on focus)
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!alive) return;
-
-        if (!user) {
-          setArticles(baseArticles);
-          setLoading(false);
-          return;
-        }
-
-        const ids = baseArticles.map((a) => a.id);
-
-        const { data: stateRows, error: stateErr } = await supabase
-          .from("user_article_state")
-          .select("article_id,is_read,is_saved")
-          .eq("user_id", user.id)
-          .in("article_id", ids);
-
-        if (!alive) return;
-
-        if (stateErr) {
-          setArticles(baseArticles);
-          setLoading(false);
-          return;
-        }
-
-        const stateMap = new Map<string, { is_read: boolean; is_saved: boolean }>();
-        for (const r of (stateRows ?? []) as ArticleStateRow[]) {
-          stateMap.set(r.article_id, { is_read: !!r.is_read, is_saved: !!r.is_saved });
-        }
-
-        setArticles(
-          baseArticles.map((a) => {
-            const s = stateMap.get(a.id);
-            return {
-              ...a,
-              is_read: s?.is_read ?? false,
-              is_saved: s?.is_saved ?? false,
-            };
-          })
-        );
-
-        setLoading(false);
       })();
 
       return () => {
@@ -283,13 +241,10 @@ export default function MaintainGroupScreen() {
 
               <Pressable
                 onPress={() => router.push("/(tabs)/premium")}
-                style={({ pressed }) => [
-                  L2.ctaOuter,
-                  { opacity: pressed ? 0.92 : 1 },
-                ]}
+                style={({ pressed }) => [L2.ctaOuter, { opacity: pressed ? 0.92 : 1 }]}
               >
                 <LinearGradient
-                  colors={[...d.goldGradient]}
+                  colors={d.goldGradient as unknown as [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={L2.absoluteFill}
@@ -329,7 +284,7 @@ export default function MaintainGroupScreen() {
                     },
                   ]}
                 >
-                  {(a.is_read || a.is_saved) ? (
+                  {a.is_read || a.is_saved ? (
                     <View
                       style={{
                         position: "absolute",

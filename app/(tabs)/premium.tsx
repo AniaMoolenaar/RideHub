@@ -80,47 +80,32 @@ export default function PremiumScreen() {
             <Text style={[styles.title, { color: t.text }]}>Premium Packs</Text>
 
             <View style={styles.bundleWrap}>
-              <Text style={[styles.muted, { color: t.textMuted }]}>Bundle pricing</Text>
-              <Text style={[styles.muted, { color: t.textMuted, marginTop: 4 }]}>
-                Each pack is {CURRENCY_PREFIX}14.99. Discounts apply when you bundle
-              </Text>
+              <Text style={[styles.muted, { color: t.textMuted }]}>Pricing</Text>
 
               <View style={styles.priceList}>
                 <View style={styles.priceRow}>
-                  <Text style={[styles.priceLabel, { color: t.text }]}>Buy 1 pack</Text>
+                  <Text style={[styles.priceLabel, { color: t.text }]}>
+                    Individual pack
+                  </Text>
                   <Text style={[styles.priceNow, { color: t.text }]}>
                     {CURRENCY_PREFIX}14.99
                   </Text>
                 </View>
 
                 <View style={styles.priceRow}>
-                  <Text style={[styles.priceLabel, { color: t.text }]}>Buy any 2 packs</Text>
-                  <View style={styles.priceRight}>
-                    <Text style={[styles.priceWas, { color: t.textMuted }]}>
-                      {CURRENCY_PREFIX}29.98
-                    </Text>
-                    <Text style={[styles.priceNow, { color: t.text }]}>
-                      {CURRENCY_PREFIX}24.99
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.priceRow}>
-                  <Text style={[styles.priceLabel, { color: t.text }]}>Buy all 3 packs</Text>
+                  <Text style={[styles.priceLabel, { color: t.text }]}>
+                    Full tool (all packs)
+                  </Text>
                   <View style={styles.priceRight}>
                     <Text style={[styles.priceWas, { color: t.textMuted }]}>
                       {CURRENCY_PREFIX}44.97
                     </Text>
                     <Text style={[styles.priceNow, { color: t.text }]}>
-                      {CURRENCY_PREFIX}34.99
+                      {CURRENCY_PREFIX}39.99
                     </Text>
                   </View>
                 </View>
               </View>
-
-              <Text style={[styles.note, { color: t.textMuted }]}>
-                Save up to {CURRENCY_PREFIX}10 when you bundle. Mix and match any packs you want.
-              </Text>
             </View>
 
             <View style={styles.paragraphsWrap}>
@@ -129,14 +114,17 @@ export default function PremiumScreen() {
                 Confidence, Bike Care & Maintenance, and Advanced Learning. Each pack expands its
                 tab with structured guides and in-depth insights.
               </Text>
+
               <Text style={[styles.paragraph, { color: t.textMuted, marginTop: 10 }]}>
-                Choose the packs you want and save when you bundle: one pack for {CURRENCY_PREFIX}
-                14.99, any two for {CURRENCY_PREFIX}24.99, or all three for {CURRENCY_PREFIX}34.99.
+                You can purchase packs individually for {CURRENCY_PREFIX}14.99, or unlock the full
+                tool with all packs for {CURRENCY_PREFIX}39.99.
               </Text>
+
               <Text style={[styles.paragraph, { color: t.textMuted, marginTop: 10 }]}>
                 Each pack is a one-time purchase that unlocks content permanently and includes all
-                future content updates at no extra cost.
+                future updates at no extra cost.
               </Text>
+
               <Text style={[styles.paragraph, { color: t.textMuted, marginTop: 10 }]}>
                 Unlock deeper knowledge — on your terms.
               </Text>
@@ -183,10 +171,12 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     gap: 6,
   },
+
   entryTitle: {
     fontSize: 15,
     fontWeight: "800",
   },
+
   entrySub: {
     fontSize: 12,
     lineHeight: 16,
@@ -202,6 +192,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
   },
+
   muted: {
     fontSize: 12,
     lineHeight: 16,
@@ -215,38 +206,38 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 10,
   },
+
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   priceLabel: {
     fontSize: 13,
     fontWeight: "700",
   },
+
   priceRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
+
   priceWas: {
     fontSize: 12,
     textDecorationLine: "line-through",
   },
+
   priceNow: {
     fontSize: 13,
     fontWeight: "800",
   },
 
-  note: {
-    marginTop: 14,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-
   paragraphsWrap: {
     marginTop: 14,
   },
+
   paragraph: {
     fontSize: 13,
     lineHeight: 18,

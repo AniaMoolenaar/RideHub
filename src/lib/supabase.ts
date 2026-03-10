@@ -1,28 +1,31 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { createClient } from "@supabase/supabase-js";
 
-console.log("SUPABASE_URL =", process.env.EXPO_PUBLIC_SUPABASE_URL);
-console.log(
-  "SUPABASE_ANON_KEY length =",
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.length
-);
+const extra = Constants.expoConfig?.extra ?? {};
 
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  extra.EXPO_PUBLIC_SUPABASE_URL;
+
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log("SUPABASE_URL =", supabaseUrl);
+console.log("SUPABASE_ANON_KEY length =", supabaseAnonKey?.length);
 console.log(
   "SUPABASE ENV CHECK →",
-  process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 15)
+  supabaseUrl,
+  supabaseAnonKey?.slice(0, 15)
 );
 
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      storage: AsyncStorage,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-    },
-  }
-);
+export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+  auth: {
+    storage: AsyncStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});

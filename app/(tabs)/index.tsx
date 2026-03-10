@@ -16,17 +16,14 @@ import SavedTopicsGrid, { type Topic } from "../../src/components/SavedTopicsGri
 import JournalSection from "../../src/components/JournalSection";
 import Disclaimer from "../../src/components/Disclaimer";
 
-import { supabase } from "../../src/lib/supabase";
 import { useSavedArticleIds } from "../../src/state/articleState";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { L1 } from "../../src/styles/level1";
-
-type SearchHit = {
-  id: string;
-  title: string;
-  tab: string | null;
-  category: string | null;
-};
+import {
+  fetchSavedArticles,
+  searchArticles,
+  type SearchHit,
+} from "../../src/features/content/api";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -35,19 +32,14 @@ export default function HomeScreen() {
   const { isDark } = useAppTheme();
   const t = themeTokens(isDark);
 
-  // Search
   const [query, setQuery] = useState("");
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const showPopup = query.trim().length >= 2;
 
-  // Saved topics
   const { savedIds } = useSavedArticleIds();
   const [savedTopics, setSavedTopics] = useState<Topic[]>([]);
 
-  // -----------------------------
-  // Saved-only grid
-  // -----------------------------
   useEffect(() => {
     let alive = true;
 
@@ -57,31 +49,34 @@ export default function HomeScreen() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("id,title,hero_image_url,groups(image_url)")
-        .in("id", savedIds);
+      try {
+        const data = await fetchSavedArticles(savedIds);
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (error) {
+        const map = new Map(data.map((a) => [a.id, a]));
+
+        const ordered: Topic[] = savedIds
+          .map((id) => map.get(id))
+          .filter(Boolean)
+          .map((a) => {
+            const groupImage = Array.isArray(a!.groups)
+              ? a!.groups[0]?.image_url ?? null
+              : a!.groups?.image_url ?? null;
+
+            return {
+              id: a!.id,
+              title: a!.title,
+              image_url: groupImage ?? a!.hero_image_url ?? null,
+              saved: true,
+            };
+          });
+
+        setSavedTopics(ordered);
+      } catch (error) {
         console.log("SAVED GRID ERROR:", error);
-        setSavedTopics([]);
-        return;
+        if (alive) setSavedTopics([]);
       }
-
-      const map = new Map((data ?? []).map((a: any) => [a.id, a]));
-      const ordered: Topic[] = savedIds
-        .map((id) => map.get(id))
-        .filter(Boolean)
-        .map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          image_url: a.groups?.image_url ?? a.hero_image_url ?? null,
-          saved: true,
-        }));
-
-      setSavedTopics(ordered);
     })();
 
     return () => {
@@ -89,9 +84,6 @@ export default function HomeScreen() {
     };
   }, [savedIds]);
 
-  // -----------------------------
-  // Search popup results
-  // -----------------------------
   useEffect(() => {
     let alive = true;
 
@@ -107,25 +99,19 @@ export default function HomeScreen() {
 
       setSearching(true);
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("id,title,tab,category")
-        .or(
-          [`title.ilike.%${q}%`, `slug.ilike.%${q}%`, `category.ilike.%${q}%`].join(",")
-        )
-        .limit(8);
+      try {
+        const data = await searchArticles(q);
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (error) {
+        setSearchHits(data);
+        setSearching(false);
+      } catch (error) {
         console.log("SEARCH ERROR:", error);
+        if (!alive) return;
         setSearchHits([]);
         setSearching(false);
-        return;
       }
-
-      setSearchHits((data ?? []) as any);
-      setSearching(false);
     })();
 
     return () => {
@@ -137,7 +123,10 @@ export default function HomeScreen() {
     const tab = (hit.tab ?? "").toLowerCase();
 
     if (tab === "ride") {
-      router.push({ pathname: "/ride-article/[articleId]", params: { articleId: hit.id } });
+      router.push({
+        pathname: "/ride-article/[articleId]",
+        params: { articleId: hit.id },
+      });
       return;
     }
 
@@ -173,7 +162,6 @@ export default function HomeScreen() {
           subtitle="Your complete guide to motorcycle ownership"
         />
 
-        {/* SEARCH */}
         <View style={L1.relativeWrap}>
           <HomeSearchBar
             value={query}
@@ -182,7 +170,12 @@ export default function HomeScreen() {
           />
 
           {showPopup ? (
-            <View style={[L1.searchPopup, { backgroundColor: t.pillBg, borderColor: t.pillBorder }]}>
+            <View
+              style={[
+                L1.searchPopup,
+                { backgroundColor: t.pillBg, borderColor: t.pillBorder },
+              ]}
+            >
               <View style={L1.searchPopupHeader}>
                 <Text style={[L1.searchMetaText, { color: t.textMuted }]}>
                   {searching
@@ -225,11 +218,13 @@ export default function HomeScreen() {
           ) : null}
         </View>
 
-        {/* SAVED TOPICS */}
         <SavedTopicsGrid
           items={savedTopics}
           onTopicPress={(topic) =>
-            router.push({ pathname: "/ride-article/[articleId]", params: { articleId: topic.id } })
+            router.push({
+              pathname: "/ride-article/[articleId]",
+              params: { articleId: topic.id },
+            })
           }
         />
 

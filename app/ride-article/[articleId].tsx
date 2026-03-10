@@ -8,7 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Hero from "../../src/components/Hero";
 import Disclaimer from "../../src/components/Disclaimer";
 import AppHeader from "../../src/components/AppHeader";
-import { supabase } from "../../src/lib/supabase";
+import { fetchArticle } from "../../src/features/content/api";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { getDesign } from "../../src/theme/design";
 import { useSupabaseArticleState } from "../../src/state/articleState";
@@ -57,7 +57,6 @@ function ToggleActionButton({
   onPress,
   t,
   d,
-  pressedOpacity = 0.92,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -66,19 +65,18 @@ function ToggleActionButton({
   onPress: () => void;
   t: ReturnType<typeof themeTokens>;
   d: ReturnType<typeof getDesign>;
-  pressedOpacity?: number;
 }) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         L3.actionBtnOuter,
-        { opacity: disabled ? 0.45 : pressed ? pressedOpacity : 1 },
+        { opacity: disabled ? 0.45 : pressed ? 0.92 : 1 },
       ]}
     >
       {active ? (
         <LinearGradient
-          colors={[...d.goldGradient]}
+          colors={d.goldGradient as unknown as [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={L3.absoluteFill}
@@ -97,7 +95,7 @@ function ToggleActionButton({
   );
 }
 
-export default function MaintainArticleScreen() {
+export default function RideArticleScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const articleId = typeof params.articleId === "string" ? params.articleId : null;
@@ -129,23 +127,24 @@ export default function MaintainArticleScreen() {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("title,summary,content_md,info_image_url,info_text")
-        .eq("id", articleId)
-        .eq("is_published", true)
-        .single();
+      try {
+        const data = await fetchArticle(articleId);
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (error) {
-        setError(error.message);
+        if (!data) {
+          setError("Article not found.");
+          setArticle(null);
+        } else {
+          setArticle(data as Article);
+        }
+      } catch (e: any) {
+        if (!alive) return;
+        setError(e?.message ?? "Failed to load article.");
         setArticle(null);
-      } else {
-        setArticle(data as Article);
+      } finally {
+        if (alive) setLoading(false);
       }
-
-      setLoading(false);
     })();
 
     return () => {
@@ -171,7 +170,6 @@ export default function MaintainArticleScreen() {
 
   const heroTitle = article?.title ?? "Article";
   const headerSubtitle = article?.summary ?? "";
-
   const hasInfo = !!article?.info_image_url || !!article?.info_text;
 
   const isSaved = !!state.is_saved;
@@ -204,7 +202,7 @@ export default function MaintainArticleScreen() {
       contentContainerStyle={{ paddingBottom: 0 }}
       showsVerticalScrollIndicator={false}
     >
-      <Hero screen="maintain" title={heroTitle} subtitle="" />
+      <Hero screen="ride" title={heroTitle} subtitle="" />
 
       <AppHeader
         subtitle={headerSubtitle}
@@ -242,9 +240,7 @@ export default function MaintainArticleScreen() {
           sections.map((s, i) => (
             <View
               key={i}
-              style={{
-                marginBottom: i === sections.length - 1 ? 0 : L3_SECTION_GAP,
-              }}
+              style={{ marginBottom: i === sections.length - 1 ? 0 : L3_SECTION_GAP }}
             >
               <View style={[L3.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
                 {!!s.heading && (

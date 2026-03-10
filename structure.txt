@@ -1,0 +1,111 @@
+Folder PATH listing for volume Windows-SSD
+Volume serial number is 8CD3-71AB
+C:\USERS\ANIA\DOCUMENTS\RIDEHUB\RIDEHUB\APP
+|   index.tsx
+|   _layout.tsx
+|   
++---(auth)
+|       login.tsx
+|       reset-password.tsx
+|       signup.tsx
+|       
++---(premium)
+|   +---crash-card
+|   |       forgot-pin.tsx
+|   |       home.tsx
+|   |       index.tsx
+|   |       report.tsx
+|   |       safety.tsx
+|   |       summary.tsx
+|   |       
+|   \---maintenance
+|       |   add-bike.tsx
+|       |   add-service.tsx
+|       |   history.tsx
+|       |   index.tsx
+|       |   log-record.tsx
+|       |   schedule.tsx
+|       |   service.tsx
+|       |   _layout.tsx
+|       |   
+|       +---bike
+|       |       [bikeId].tsx
+|       |       
+|       \---service
+|               [serviceId].tsx
+|               
++---(tabs)
+|       index.tsx
+|       learn.tsx
+|       maintain.tsx
+|       premium.tsx
+|       ride.tsx
+|       _layout.tsx
+|       
++---learn-article
+|       [articleId].tsx
+|       
++---learn-group
+|       [groupId].tsx
+|       
++---maintain-article
+|       [articleId].tsx
+|       
++---maintain-group
+|       [groupId].tsx
+|       
++---menu
+|       disclaimers.tsx
+|       menu.tsx
+|       privacy-policy.tsx
+|       reading-status.tsx
+|       settings.tsx
+|       
++---ride-article
+|       [articleId].tsx
+|       
+\---ride-group
+        [groupId].tsx
+        
+Folder PATH listing for volume Windows-SSD
+Volume serial number is 8CD3-71AB
+C:\USERS\ANIA\DOCUMENTS\RIDEHUB\RIDEHUB\SRC\FEATURES
++---crashcard
+|       CrashCardForgotPinScreen.tsx
+|       CrashCardHomeScreen.tsx
+|       CrashCardPinScreen.tsx
+|       CrashCardReportScreen.tsx
+|       CrashCardSummary.tsx
+|       CrashCardSummaryScreen.tsx
+|       crypto.ts
+|       historyStorage.ts
+|       pinStorage.ts
+|       storage.ts
+|       sync.ts
+|       types.ts
+|       
+\---maintenance
+    |   api.ts
+    |   types.ts
+    |   ui.ts
+    |   
+    +---api
+    +---helpers
+    |       due.ts
+    |       records.ts
+    |       units.ts
+    |       
+    +---screens
+    |       AddBikeScreen.tsx
+    |       AddTrackedServiceScreen.tsx
+    |       BikeMaintenanceScreen.tsx
+    |       HistoryScreen.tsx
+    |       LogMaintenanceRecordScreen.tsx
+    |       MaintenanceHomeScreen.tsx
+    |       ServiceDetailScreen.tsx
+    |       
+    \---types
+            bikes.ts
+            records.ts
+            services.ts
+            
