@@ -34,12 +34,10 @@ type Tile = GroupRow & { height: number };
 
 const MAINTAIN_SECTION_ID = "3245295d-d37b-48c0-b481-0016b8831e81";
 
-/* helpers */
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-// simple greedy masonry (2 columns)
 function packTwoColumns(items: Tile[]) {
   const left: Tile[] = [];
   const right: Tile[] = [];
@@ -60,20 +58,22 @@ function packTwoColumns(items: Tile[]) {
   return { left, right };
 }
 
-/* tile */
+function formatProgress(total: number, completed: number) {
+  const articleLabel = total === 1 ? "Article" : "Articles";
+  return `${total} ${articleLabel} • ${completed} Completed`;
+}
+
 function TileCard({
   item,
   width,
   onPress,
   UI,
-  t,
   d,
 }: {
   item: Tile;
   width: number;
   onPress: () => void;
   UI: ReturnType<typeof useUI>;
-  t: ReturnType<typeof themeTokens>;
   d: ReturnType<typeof getDesign>;
 }) {
   return (
@@ -99,9 +99,9 @@ function TileCard({
           />
         </View>
 
-        {item.is_premium && (
+        {item.is_premium ? (
           <Sparkles size={18} color={d.premiumSparkle} style={L1.sparklePos} />
-        )}
+        ) : null}
 
         <Text style={[UI.bottomLabelText, L1.bottomLabelPos]} numberOfLines={2}>
           {item.title}
@@ -111,7 +111,6 @@ function TileCard({
   );
 }
 
-/* screen */
 export default function MaintainScreen() {
   const router = useRouter();
   const UI = useUI();
@@ -123,6 +122,8 @@ export default function MaintainScreen() {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [completedArticles, setCompletedArticles] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -131,23 +132,96 @@ export default function MaintainScreen() {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from("groups")
-        .select("id,title,description,is_premium,image_url,tile_height")
-        .eq("section_id", MAINTAIN_SECTION_ID)
-        .eq("is_published", true)
-        .order("sort_order", { ascending: true });
+      try {
+        const { data: groupData, error: groupError } = await supabase
+          .from("groups")
+          .select("id,title,description,is_premium,image_url,tile_height")
+          .eq("section_id", MAINTAIN_SECTION_ID)
+          .eq("is_published", true)
+          .order("sort_order", { ascending: true });
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (error) {
-        setError(error.message);
+        if (groupError) {
+          setError(groupError.message);
+          setGroups([]);
+          setTotalArticles(0);
+          setCompletedArticles(0);
+          return;
+        }
+
+        const nextGroups = (groupData ?? []) as GroupRow[];
+        setGroups(nextGroups);
+
+        const groupIds = nextGroups.map((g) => g.id);
+
+        if (!groupIds.length) {
+          setTotalArticles(0);
+          setCompletedArticles(0);
+          return;
+        }
+
+        const { data: articleData, error: articleError } = await supabase
+          .from("articles")
+          .select("id")
+          .in("group_id", groupIds)
+          .eq("tab", "maintain")
+          .eq("is_published", true);
+
+        if (!mounted) return;
+
+        if (articleError) {
+          setError(articleError.message);
+          setTotalArticles(0);
+          setCompletedArticles(0);
+          return;
+        }
+
+        const articleIds = (articleData ?? []).map((a: any) => a.id as string);
+        setTotalArticles(articleIds.length);
+
+        if (!articleIds.length) {
+          setCompletedArticles(0);
+          return;
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (!user) {
+          setCompletedArticles(0);
+          return;
+        }
+
+        const { data: stateData, error: stateError } = await supabase
+          .from("user_article_state")
+          .select("article_id")
+          .eq("user_id", user.id)
+          .eq("is_read", true)
+          .in("article_id", articleIds);
+
+        if (!mounted) return;
+
+        if (stateError) {
+          setError(stateError.message);
+          setCompletedArticles(0);
+          return;
+        }
+
+        const completedIds = new Set((stateData ?? []).map((row: any) => row.article_id));
+        setCompletedArticles(completedIds.size);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message ?? "Failed to load Maintain.");
         setGroups([]);
-      } else {
-        setGroups((data ?? []) as GroupRow[]);
+        setTotalArticles(0);
+        setCompletedArticles(0);
+      } finally {
+        if (mounted) setLoading(false);
       }
-
-      setLoading(false);
     })();
 
     return () => {
@@ -187,17 +261,43 @@ export default function MaintainScreen() {
       />
 
       <View style={[L1.sectionWrap, L1.sectionTop38]}>
-        <Text style={[L1.centerIntroText, { color: t.text }]}>
+        <Text
+          style={[
+            L1.centerIntroText,
+            {
+              color: t.text,
+              marginBottom: 12,
+              lineHeight: 20,
+            },
+          ]}
+        >
           Every ride builds understanding.
         </Text>
 
-        {loading && <ActivityIndicator />}
+        {!loading && !error ? (
+          <Text
+            style={{
+              color: t.textMuted,
+              opacity: 0.9,
+              fontSize: 13,
+              textAlign: "center",
+              marginTop: 2,
+              marginBottom: 32,
+              lineHeight: 16,
+            }}
+          >
+            {formatProgress(totalArticles, completedArticles)}
+          </Text>
+        ) : null}
 
-        {!loading && error && <Text style={{ color: t.textMuted }}>{error}</Text>}
+        {loading ? <ActivityIndicator /> : null}
 
-        {!loading && !error && (
+        {!loading && error ? (
+          <Text style={{ color: t.textMuted }}>{error}</Text>
+        ) : null}
+
+        {!loading && !error ? (
           <View style={UI.gridRow}>
-            {/* left column */}
             <View style={{ width: columnWidth }}>
               {masonry.left.map((item, i) => (
                 <View key={item.id} style={{ marginTop: i ? SPACING.gutter : 0 }}>
@@ -205,7 +305,6 @@ export default function MaintainScreen() {
                     item={item}
                     width={columnWidth}
                     UI={UI}
-                    t={t}
                     d={d}
                     onPress={() =>
                       router.push({
@@ -220,7 +319,6 @@ export default function MaintainScreen() {
 
             <View style={L1.gutterSpacer} />
 
-            {/* right column */}
             <View style={{ width: columnWidth }}>
               {masonry.right.map((item, i) => (
                 <View key={item.id} style={{ marginTop: i ? SPACING.gutter : 0 }}>
@@ -228,7 +326,6 @@ export default function MaintainScreen() {
                     item={item}
                     width={columnWidth}
                     UI={UI}
-                    t={t}
                     d={d}
                     onPress={() =>
                       router.push({
@@ -241,7 +338,7 @@ export default function MaintainScreen() {
               ))}
             </View>
           </View>
-        )}
+        ) : null}
       </View>
 
       <Disclaimer />

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View, Text, Pressable, ActivityIndicator } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, View, Text, Pressable, RefreshControl } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Bookmark, CheckCircle2, Info } from "lucide-react-native";
 import Markdown from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,6 +8,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import Hero from "../../src/components/Hero";
 import Disclaimer from "../../src/components/Disclaimer";
 import AppHeader from "../../src/components/AppHeader";
+import LoadingBlock from "../../src/components/LoadingBlock";
+import ErrorBlock from "../../src/components/ErrorBlock";
+import EmptyState from "../../src/components/EmptyState";
 import { fetchArticle } from "../../src/features/content/api";
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { getDesign } from "../../src/theme/design";
@@ -105,8 +108,10 @@ export default function RideArticleScreen() {
   const d = getDesign(isDark);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [article, setArticle] = useState<Article | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const { isSignedIn, authLoading, state, loading: stateLoading, setSaved, setRead } =
     useSupabaseArticleState(articleId);
@@ -114,43 +119,59 @@ export default function RideArticleScreen() {
   const [savingSaved, setSavingSaved] = useState(false);
   const [savingRead, setSavingRead] = useState(false);
 
-  useEffect(() => {
-    if (!articleId) {
-      setLoading(false);
-      setError("Missing articleId.");
-      return;
-    }
+  const loadArticle = useCallback(
+    async (isRefresh = false) => {
+      if (!articleId) {
+        setError("Missing articleId.");
+        setArticle(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
-    let alive = true;
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-    (async () => {
-      setLoading(true);
       setError(null);
 
       try {
         const data = await fetchArticle(articleId);
 
-        if (!alive) return;
-
         if (!data) {
           setError("Article not found.");
           setArticle(null);
-        } else {
-          setArticle(data as Article);
+          return;
         }
+
+        setArticle(data as Article);
       } catch (e: any) {
-        if (!alive) return;
         setError(e?.message ?? "Failed to load article.");
         setArticle(null);
       } finally {
-        if (alive) setLoading(false);
+        setLoading(false);
+        setRefreshing(false);
       }
-    })();
+    },
+    [articleId]
+  );
 
-    return () => {
-      alive = false;
-    };
-  }, [articleId]);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      (async () => {
+        if (!active) return;
+        await loadArticle(false);
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, [loadArticle, reloadKey])
+  );
 
   const sections = useMemo(
     () => splitIntoSections(article?.content_md ?? ""),
@@ -201,6 +222,14 @@ export default function RideArticleScreen() {
       style={{ backgroundColor: t.screenBg }}
       contentContainerStyle={{ paddingBottom: 0 }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        !loading ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadArticle(true)}
+          />
+        ) : undefined
+      }
     >
       <Hero screen="ride" title={heroTitle} subtitle="" />
 
@@ -233,9 +262,16 @@ export default function RideArticleScreen() {
 
       <View style={L3.articleWrap}>
         {loading ? (
-          <ActivityIndicator />
+          <LoadingBlock />
         ) : error ? (
-          <Text style={{ color: t.textMuted }}>{error}</Text>
+          <ErrorBlock
+            message={error}
+            onRetry={() => {
+              setReloadKey((v) => v + 1);
+            }}
+          />
+        ) : sections.length === 0 ? (
+          <EmptyState message="This article has no content yet." />
         ) : (
           sections.map((s, i) => (
             <View
