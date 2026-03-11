@@ -40,6 +40,7 @@ type Props = {
   onPressMenu?: () => void;
   showSparkles?: boolean;
   onPressSparkles?: () => void;
+  hideSubtitleVisual?: boolean;
 };
 
 function normaliseHeroConfig(row: HeroConfigRow | null): HeroConfig | null {
@@ -61,6 +62,7 @@ export default function Hero({
   variant = "default",
   screen,
   onPressMenu,
+  hideSubtitleVisual = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -126,18 +128,20 @@ export default function Hero({
     }
   );
 
+  const hasSubtitle = !!subtitle?.trim();
+
   return (
     <View style={[styles.outer, { height: heroHeight }]}>
       <View style={styles.inner}>
-        {config?.media_type === "image" && (
+        {config?.media_type === "image" ? (
           <Image
             source={{ uri: config.media_url }}
             resizeMode="cover"
             style={mediaStyle}
           />
-        )}
+        ) : null}
 
-        {config?.media_type === "video" && videoPlayer && (
+        {config?.media_type === "video" && videoPlayer ? (
           <VideoView
             player={videoPlayer}
             style={mediaStyle}
@@ -146,7 +150,7 @@ export default function Hero({
             allowsFullscreen={false}
             allowsPictureInPicture={false}
           />
-        )}
+        ) : null}
 
         <LinearGradient
           colors={[
@@ -176,12 +180,22 @@ export default function Hero({
           </View>
         </View>
 
-        {(title || subtitle) && (
+        {(title || subtitle) ? (
           <View style={styles.bottomTextWrap}>
-            {!!title && <Text style={styles.title}>{title}</Text>}
-            {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            {!!title ? <Text style={styles.title}>{title}</Text> : null}
+
+            {hasSubtitle ? (
+              <Text
+                style={[
+                  styles.subtitle,
+                  hideSubtitleVisual && styles.subtitleHidden,
+                ]}
+              >
+                {subtitle}
+              </Text>
+            ) : null}
           </View>
-        )}
+        ) : null}
 
         <LinearGradient
           colors={["#926806", "#ffe093", "#c99b32", "#8a6000"]}
@@ -283,10 +297,14 @@ const styles = StyleSheet.create({
 
   subtitle: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
+    fontSize: 16,
     textAlign: "center",
     maxWidth: 340,
     marginBottom: 30,
+  },
+
+  subtitleHidden: {
+    opacity: 0,
   },
 
   divider: {

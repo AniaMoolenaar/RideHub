@@ -10,6 +10,7 @@ export type SearchHit = {
 export type SavedArticleRow = {
   id: string;
   title: string;
+  tab: string | null;
   hero_image_url: string | null;
   groups:
     | {
@@ -21,12 +22,23 @@ export type SavedArticleRow = {
     | null;
 };
 
+export type ArticleRow = {
+  title: string;
+  subheading: string | null;
+  summary: string | null;
+  content_md: string;
+  info_image_url: string | null;
+  info_text: string | null;
+  group_title: string | null;
+  group_description: string | null;
+};
+
 export async function fetchSavedArticles(ids: string[]): Promise<SavedArticleRow[]> {
   if (!ids.length) return [];
 
   const { data, error } = await supabase
     .from("articles")
-    .select("id,title,hero_image_url,groups(image_url)")
+    .select("id,title,tab,hero_image_url,groups(image_url)")
     .in("id", ids);
 
   if (error) throw error;
@@ -53,56 +65,57 @@ export async function searchArticles(query: string): Promise<SearchHit[]> {
   return (data ?? []) as SearchHit[];
 }
 
-export type GroupRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  is_premium: boolean;
-};
-
-export type GroupArticleRow = {
-  id: string;
-  title: string;
-  subheading: string | null;
-  summary: string | null;
-};
-
-export type ProfileEntitlements = {
-  is_premium: boolean;
-  has_ride: boolean;
-  has_maintain: boolean;
-  has_learn: boolean;
-};
-
-export type ArticleStateRow = {
-  article_id: string;
-  is_read: boolean;
-  is_saved: boolean;
-};
-
-export async function fetchGroup(groupId: string): Promise<GroupRow | null> {
+export async function fetchArticle(id: string): Promise<ArticleRow | null> {
   const { data, error } = await supabase
-    .from("groups")
-    .select("id,title,description,is_premium")
-    .eq("id", groupId)
+    .from("articles")
+    .select(
+      "title,subheading,summary,content_md,info_image_url,info_text,groups(title,description)"
+    )
+    .eq("id", id)
     .eq("is_published", true)
-    .maybeSingle();
+    .single();
 
   if (error) throw error;
   if (!data) return null;
 
+  const row = data as any;
+
+  const groupTitle = Array.isArray(row.groups)
+    ? row.groups[0]?.title ?? null
+    : row.groups?.title ?? null;
+
+  const groupDescription = Array.isArray(row.groups)
+    ? row.groups[0]?.description ?? null
+    : row.groups?.description ?? null;
+
   return {
-    id: data.id,
-    title: data.title,
-    description: data.description ?? null,
-    is_premium: !!data.is_premium,
+    title: row.title,
+    subheading: row.subheading ?? null,
+    summary: row.summary ?? null,
+    content_md: row.content_md ?? "",
+    info_image_url: row.info_image_url ?? null,
+    info_text: row.info_text ?? null,
+    group_title: groupTitle,
+    group_description: groupDescription,
   };
+}
+
+export async function fetchGroup(id: string) {
+  const { data, error } = await supabase
+    .from("groups")
+    .select("id,title,description,is_premium")
+    .eq("id", id)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function fetchGroupArticles(
   groupId: string,
   tab: "ride" | "learn" | "maintain"
-): Promise<GroupArticleRow[]> {
+) {
   const { data, error } = await supabase
     .from("articles")
     .select("id,title,subheading,summary")
@@ -112,26 +125,20 @@ export async function fetchGroupArticles(
     .order("sort_order", { ascending: true });
 
   if (error) throw error;
-
-  return (data ?? []).map((a: any) => ({
-    id: a.id,
-    title: a.title,
-    subheading: a.subheading ?? null,
-    summary: a.summary ?? null,
-  }));
+  return data ?? [];
 }
 
 export async function fetchCurrentUser() {
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
+  if (error) throw error;
   return user;
 }
 
-export async function fetchProfileEntitlements(
-  userId: string
-): Promise<ProfileEntitlements | null> {
+export async function fetchProfileEntitlements(userId: string) {
   const { data, error } = await supabase
     .from("profiles")
     .select("is_premium, has_ride, has_maintain, has_learn")
@@ -139,13 +146,10 @@ export async function fetchProfileEntitlements(
     .single();
 
   if (error) throw error;
-  return data as ProfileEntitlements;
+  return data;
 }
 
-export async function fetchUserArticleState(
-  userId: string,
-  articleIds: string[]
-): Promise<ArticleStateRow[]> {
+export async function fetchUserArticleState(userId: string, articleIds: string[]) {
   if (!articleIds.length) return [];
 
   const { data, error } = await supabase
@@ -155,18 +159,5 @@ export async function fetchUserArticleState(
     .in("article_id", articleIds);
 
   if (error) throw error;
-  return (data ?? []) as ArticleStateRow[];
-}
-
-export async function fetchArticle(id: string) {
-  const { data, error } = await supabase
-    .from("articles")
-    .select("title,summary,content_md,info_image_url,info_text")
-    .eq("id", id)
-    .eq("is_published", true)
-    .single();
-
-  if (error) throw error;
-
-  return data;
+  return data ?? [];
 }

@@ -67,6 +67,7 @@ export default function HomeScreen() {
             return {
               id: a!.id,
               title: a!.title,
+              tab: a!.tab ?? null,
               image_url: groupImage ?? a!.hero_image_url ?? null,
               saved: true,
             };
@@ -119,28 +120,38 @@ export default function HomeScreen() {
     };
   }, [query]);
 
-  function openHit(hit: SearchHit) {
-    const tab = (hit.tab ?? "").toLowerCase();
+  function openArticleByTab(articleId: string, tab?: string | null) {
+    const normalizedTab = (tab ?? "").toLowerCase();
 
-    if (tab === "ride") {
+    if (normalizedTab === "ride") {
       router.push({
         pathname: "/ride-article/[articleId]",
-        params: { articleId: hit.id },
+        params: { articleId },
       });
       return;
     }
 
-    if (tab === "maintain") {
-      router.push("/maintain-gateway");
+    if (normalizedTab === "learn") {
+      router.push({
+        pathname: "/learn-article/[articleId]",
+        params: { articleId },
+      });
       return;
     }
 
-    if (tab === "learn") {
-      router.push("/learn-gateway");
+    if (normalizedTab === "maintain") {
+      router.push({
+        pathname: "/maintain-article/[articleId]",
+        params: { articleId },
+      });
       return;
     }
 
     router.push("/premium");
+  }
+
+  function openHit(hit: SearchHit) {
+    openArticleByTab(hit.id, hit.tab);
   }
 
   return (
@@ -220,12 +231,7 @@ export default function HomeScreen() {
 
         <SavedTopicsGrid
           items={savedTopics}
-          onTopicPress={(topic) =>
-            router.push({
-              pathname: "/ride-article/[articleId]",
-              params: { articleId: topic.id },
-            })
-          }
+          onTopicPress={(topic) => openArticleByTab(topic.id, topic.tab)}
         />
 
         <JournalSection />

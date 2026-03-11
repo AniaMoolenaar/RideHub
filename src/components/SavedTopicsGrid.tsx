@@ -15,8 +15,9 @@ import { useAppTheme, themeTokens } from "../theme/theme";
 export type Topic = {
   id: string;
   title: string;
-  image?: any; // local require(...)
-  image_url?: string | null; // remote URL
+  tab?: string | null;
+  image?: any;
+  image_url?: string | null;
   saved?: boolean;
 };
 
@@ -43,7 +44,6 @@ export default function SavedTopicsGrid({
   const t = themeTokens(isDark);
 
   const layout = useMemo(() => {
-    // Keep it stable + safe across small screens
     const innerW = Math.max(0, width - horizontalPadding * 2);
     const tileW = Math.max(140, Math.floor((innerW - gap) / 2));
     return { tileW, innerW };
@@ -99,7 +99,6 @@ export default function SavedTopicsGrid({
                 ) : (
                   <LinearGradient
                     colors={[
-                      // keep your fallback but slightly theme-aware
                       isDark ? "#141517" : "#F2F2F3",
                       isDark ? "#232428" : "#E7E7EA",
                     ]}
@@ -144,8 +143,9 @@ export default function SavedTopicsGrid({
 }
 
 function getImageSource(item: Topic) {
-  if (item.image_url && item.image_url.trim().length)
+  if (item.image_url && item.image_url.trim().length) {
     return { uri: item.image_url };
+  }
   if (item.image) return item.image;
   return null;
 }
