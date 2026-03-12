@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, View, Text, RefreshControl } from "react-native";
+import { ScrollView, View, Text, RefreshControl, Pressable } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import Markdown from "react-native-markdown-display";
+import { Bookmark, CheckCircle2 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import Hero from "../../src/components/Hero";
 import Disclaimer from "../../src/components/Disclaimer";
@@ -15,6 +17,7 @@ import { fetchArticle } from "../../src/features/content/api";
 
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
 import { getDesign } from "../../src/theme/design";
+import { useSupabaseArticleState } from "../../src/state/articleState";
 import { L3 } from "../../src/styles/level3";
 import { L2 } from "../../src/styles/level2";
 
@@ -68,6 +71,11 @@ export default function RideArticleScreen() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  const { state, setSaved, setRead } = useSupabaseArticleState(articleId);
+
+  const isSaved = !!state?.is_saved;
+  const isRead = !!state?.is_read;
+
   const loadArticle = useCallback(
     async (isRefresh = false) => {
       if (!articleId) {
@@ -91,7 +99,7 @@ export default function RideArticleScreen() {
           return;
         }
 
-        setArticle(data);
+        setArticle(data as Article);
       } catch (e: any) {
         setError(e?.message ?? "Failed to load article.");
         setArticle(null);
@@ -186,6 +194,68 @@ export default function RideArticleScreen() {
             </View>
           ))
         )}
+      </View>
+
+      {/* CTA BUTTONS */}
+
+      <View style={L3.actionsWrap}>
+        <View style={L3.actionsRow}>
+          <Pressable
+            onPress={() => setSaved(!isSaved)}
+            style={L3.actionBtnOuter}
+          >
+            {isSaved ? (
+              <LinearGradient
+                colors={d.goldGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={L3.absoluteFill}
+              />
+            ) : (
+              <View style={[L3.absoluteFill, { backgroundColor: t.pillBg }]} />
+            )}
+
+            <View style={L3.actionBtnInner}>
+              <Bookmark size={18} color={isSaved ? d.goldTextOn : t.text} />
+              <Text
+                style={[
+                  L3.actionText,
+                  { color: isSaved ? d.goldTextOn : t.text },
+                ]}
+              >
+                {isSaved ? "Saved" : "Save"}
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setRead(!isRead)}
+            style={L3.actionBtnOuter}
+          >
+            {isRead ? (
+              <LinearGradient
+                colors={d.goldGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={L3.absoluteFill}
+              />
+            ) : (
+              <View style={[L3.absoluteFill, { backgroundColor: t.pillBg }]} />
+            )}
+
+            <View style={L3.actionBtnInner}>
+              <CheckCircle2 size={18} color={isRead ? d.goldTextOn : t.text} />
+              <Text
+                style={[
+                  L3.actionText,
+                  { color: isRead ? d.goldTextOn : t.text },
+                ]}
+              >
+                {isRead ? "Read" : "Mark read"}
+              </Text>
+            </View>
+          </Pressable>
+        </View>
       </View>
 
       <View style={L2.disclaimerWrap}>

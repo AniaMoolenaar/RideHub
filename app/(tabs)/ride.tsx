@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   ScrollView,
   View,
@@ -9,7 +9,7 @@ import {
   ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Sparkles } from "lucide-react-native";
 
 import Hero from "../../src/components/Hero";
@@ -125,109 +125,98 @@ export default function RideScreen() {
   const [totalArticles, setTotalArticles] = useState(0);
   const [completedArticles, setCompletedArticles] = useState(0);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadScreen = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-    (async () => {
-      setLoading(true);
-      setError(null);
+    try {
+      const { data: groupData, error: groupError } = await supabase
+        .from("groups")
+        .select("id,title,description,is_premium,image_url,tile_height")
+        .eq("section_id", RIDE_SECTION_ID)
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true });
 
-      try {
-        const { data: groupData, error: groupError } = await supabase
-          .from("groups")
-          .select("id,title,description,is_premium,image_url,tile_height")
-          .eq("section_id", RIDE_SECTION_ID)
-          .eq("is_published", true)
-          .order("sort_order", { ascending: true });
-
-        if (!mounted) return;
-
-        if (groupError) {
-          setError(groupError.message);
-          setGroups([]);
-          setTotalArticles(0);
-          setCompletedArticles(0);
-          return;
-        }
-
-        const nextGroups = (groupData ?? []) as GroupRow[];
-        setGroups(nextGroups);
-
-        const groupIds = nextGroups.map((g) => g.id);
-
-        if (!groupIds.length) {
-          setTotalArticles(0);
-          setCompletedArticles(0);
-          return;
-        }
-
-        const { data: articleData, error: articleError } = await supabase
-          .from("articles")
-          .select("id")
-          .in("group_id", groupIds)
-          .eq("tab", "ride")
-          .eq("is_published", true);
-
-        if (!mounted) return;
-
-        if (articleError) {
-          setError(articleError.message);
-          setTotalArticles(0);
-          setCompletedArticles(0);
-          return;
-        }
-
-        const articleIds = (articleData ?? []).map((a: any) => a.id as string);
-        setTotalArticles(articleIds.length);
-
-        if (!articleIds.length) {
-          setCompletedArticles(0);
-          return;
-        }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!mounted) return;
-
-        if (!user) {
-          setCompletedArticles(0);
-          return;
-        }
-
-        const { data: stateData, error: stateError } = await supabase
-          .from("user_article_state")
-          .select("article_id")
-          .eq("user_id", user.id)
-          .eq("is_read", true)
-          .in("article_id", articleIds);
-
-        if (!mounted) return;
-
-        if (stateError) {
-          setError(stateError.message);
-          setCompletedArticles(0);
-          return;
-        }
-
-        const completedIds = new Set((stateData ?? []).map((row: any) => row.article_id));
-        setCompletedArticles(completedIds.size);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message ?? "Failed to load Ride.");
+      if (groupError) {
+        setError(groupError.message);
         setGroups([]);
         setTotalArticles(0);
         setCompletedArticles(0);
-      } finally {
-        if (mounted) setLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      mounted = false;
-    };
+      const nextGroups = (groupData ?? []) as GroupRow[];
+      setGroups(nextGroups);
+
+      const freeGroupIds = nextGroups.filter((g) => !g.is_premium).map((g) => g.id);
+
+      if (!freeGroupIds.length) {
+        setTotalArticles(0);
+        setCompletedArticles(0);
+        return;
+      }
+
+      const { data: articleData, error: articleError } = await supabase
+        .from("articles")
+        .select("id")
+        .in("group_id", freeGroupIds)
+        .eq("tab", "ride")
+        .eq("is_published", true);
+
+      if (articleError) {
+        setError(articleError.message);
+        setTotalArticles(0);
+        setCompletedArticles(0);
+        return;
+      }
+
+      const articleIds = (articleData ?? []).map((a: any) => a.id as string);
+      setTotalArticles(articleIds.length);
+
+      if (!articleIds.length) {
+        setCompletedArticles(0);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setCompletedArticles(0);
+        return;
+      }
+
+      const { data: stateData, error: stateError } = await supabase
+        .from("user_article_state")
+        .select("article_id")
+        .eq("user_id", user.id)
+        .eq("is_read", true)
+        .in("article_id", articleIds);
+
+      if (stateError) {
+        setError(stateError.message);
+        setCompletedArticles(0);
+        return;
+      }
+
+      const completedIds = new Set((stateData ?? []).map((row: any) => row.article_id));
+      setCompletedArticles(completedIds.size);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load Ride.");
+      setGroups([]);
+      setTotalArticles(0);
+      setCompletedArticles(0);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadScreen();
+    }, [loadScreen])
+  );
 
   const screenW = Dimensions.get("window").width;
 
@@ -294,9 +283,7 @@ export default function RideScreen() {
 
         {loading ? <ActivityIndicator /> : null}
 
-        {!loading && error ? (
-          <Text style={{ color: t.textMuted }}>{error}</Text>
-        ) : null}
+        {!loading && error ? <Text style={{ color: t.textMuted }}>{error}</Text> : null}
 
         {!loading && !error ? (
           <View style={UI.gridRow}>
