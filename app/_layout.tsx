@@ -1,4 +1,4 @@
-import { Stack, usePathname, useRouter } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "../src/theme/theme";
 import { supabase } from "../src/lib/supabase";
@@ -12,73 +12,83 @@ type UserEntitlements = {
 
 export default function RootLayout() {
   const router = useRouter();
-  const pathname = usePathname();
+  const segments = useSegments();
 
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [profile, setProfile] = useState<UserEntitlements | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [, setProfile] = useState<UserEntitlements | null>(null);
 
   useEffect(() => {
     let alive = true;
 
-    const loadProfileAndRoute = async () => {
-      setCheckingAuth(true);
-
-      const {
-        data: { user },
-        error: userErr,
-      } = await supabase.auth.getUser();
-
-      if (!alive) return;
-
-      if (userErr || !user) {
+    const loadProfile = async (nextUserId: string | null) => {
+      if (!nextUserId) {
+        if (!alive) return;
         setProfile(null);
-        setCheckingAuth(false);
-
-        // If user is not logged in, force to discovery OR login.
-        // You said: "opened again it goes back to the start to the discovery screen"
-        // So we force "/" (your discovery screen).
-        if (pathname !== "/") {
-          router.dismissAll();
-          router.replace("/");
-        }
         return;
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("is_premium, has_ride, has_maintain, has_learn")
-        .eq("id", user.id)
-        .single();
+        .eq("id", nextUserId)
+        .maybeSingle();
+
+      if (!alive) return;
+      setProfile((data ?? null) as UserEntitlements | null);
+    };
+
+    const restoreSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!alive) return;
 
-      if (error) {
-        setProfile(null);
-        setCheckingAuth(false);
-        return;
-      }
+      const nextUserId = session?.user?.id ?? null;
+      setUserId(nextUserId);
+      setAuthReady(true);
 
-      setProfile((data ?? null) as any);
-      setCheckingAuth(false);
-
-      // If logged in but currently sitting on auth screens, force into tabs.
-      if (pathname?.startsWith("/(auth)")) {
-        router.dismissAll();
-        router.replace("/(tabs)");
-      }
+      await loadProfile(nextUserId);
     };
 
-    loadProfileAndRoute();
+    restoreSession();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      loadProfileAndRoute();
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+
+      if (!alive) return;
+
+      setUserId(nextUserId);
+      setAuthReady(true);
+
+      await loadProfile(nextUserId);
     });
 
     return () => {
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, [pathname, router]);
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+
+    const firstSegment = segments[0];
+    const inAuthGroup = firstSegment === "(auth)";
+    const inTabsGroup = firstSegment === "(tabs)";
+
+    if (!userId) {
+      if (inTabsGroup) {
+        router.replace("/");
+      }
+      return;
+    }
+
+    if (inAuthGroup) {
+      router.replace("/(tabs)");
+    }
+  }, [authReady, userId, segments, router]);
 
   return (
     <ThemeProvider>

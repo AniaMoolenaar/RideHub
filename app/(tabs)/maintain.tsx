@@ -243,11 +243,7 @@ export default function MaintainScreen() {
       contentContainerStyle={L1.scrollContent24}
       showsVerticalScrollIndicator={false}
     >
-      <Hero
-        screen="maintain"
-        title="Maintain"
-        subtitle="Understand your bike and keep it running right"
-      />
+      <Hero screen="maintain" />
 
       <View style={[L1.sectionWrap, L1.sectionTop38]}>
         <Text

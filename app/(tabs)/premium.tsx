@@ -26,11 +26,7 @@ export default function PremiumScreen() {
         contentContainerStyle={[L1.scrollContent24, { backgroundColor: t.screenBg }]}
         showsVerticalScrollIndicator={false}
       >
-        <Hero
-          screen="premium"
-          title="Premium"
-          subtitle="Deeper guidance, tools, and future releases"
-        />
+        <Hero screen="premium" />
 
         <View style={styles.contentWrap}>
           <Pressable

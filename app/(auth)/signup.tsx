@@ -25,12 +25,9 @@ export default function SignupScreen() {
   const router = useRouter();
 
   const [displayName, setDisplayName] = useState("");
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [city, setCity] = useState("");
-
   const [countryName, setCountryName] = useState<string>("");
   const [countryCode, setCountryCode] = useState<string>("");
 
@@ -42,7 +39,7 @@ export default function SignupScreen() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const trimmedDisplayName = useMemo(() => displayName.trim(), [displayName]);
-  const trimmedEmail = useMemo(() => email.trim(), [email]);
+  const trimmedEmail = useMemo(() => email.trim().toLowerCase(), [email]);
   const trimmedCity = useMemo(() => city.trim(), [city]);
   const trimmedCountry = useMemo(() => countryName.trim(), [countryName]);
   const trimmedCode = useMemo(() => countryCode.trim().toUpperCase(), [countryCode]);
@@ -73,6 +70,8 @@ export default function SignupScreen() {
   };
 
   const onSignup = async () => {
+    if (loading) return;
+
     setError(null);
     setSuccessMsg(null);
 
@@ -82,12 +81,12 @@ export default function SignupScreen() {
     }
 
     setLoading(true);
+
     try {
       const signUpRes = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
         options: {
-          emailRedirectTo: "http://localhost:8081/(auth)/login",
           data: {
             display_name: trimmedDisplayName,
             city: trimmedCity,
@@ -99,14 +98,13 @@ export default function SignupScreen() {
 
       if (signUpRes.error) {
         setError(signUpRes.error.message);
-        setLoading(false);
         return;
       }
 
       setSuccessMsg("Account created. Please check your email to verify before logging in.");
-      setLoading(false);
     } catch (e: any) {
       setError(e?.message ?? "Unknown error");
+    } finally {
       setLoading(false);
     }
   };
@@ -138,6 +136,7 @@ export default function SignupScreen() {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoCorrect={false}
         keyboardType="email-address"
         placeholder="you@example.com"
         style={{
@@ -155,6 +154,8 @@ export default function SignupScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
         placeholder="6+ characters"
         style={{
           borderWidth: 1,
@@ -236,7 +237,9 @@ export default function SignupScreen() {
       ) : null}
 
       {error ? <Text style={{ color: "#b00020", marginBottom: 12 }}>{error}</Text> : null}
-      {successMsg ? <Text style={{ color: "rgba(0,0,0,0.7)", marginBottom: 12 }}>{successMsg}</Text> : null}
+      {successMsg ? (
+        <Text style={{ color: "rgba(0,0,0,0.7)", marginBottom: 12 }}>{successMsg}</Text>
+      ) : null}
 
       <Pressable
         onPress={onSignup}
@@ -258,7 +261,10 @@ export default function SignupScreen() {
         )}
       </Pressable>
 
-      <Pressable onPress={() => router.replace("/(auth)/login")} style={{ paddingVertical: 14, alignItems: "center" }}>
+      <Pressable
+        onPress={() => router.replace("/(auth)/login")}
+        style={{ paddingVertical: 14, alignItems: "center" }}
+      >
         <Text style={{ color: "rgba(0,0,0,0.55)" }}>Already have an account? Log in</Text>
       </Pressable>
 

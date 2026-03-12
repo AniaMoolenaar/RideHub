@@ -243,11 +243,7 @@ export default function RideScreen() {
       contentContainerStyle={L1.scrollContent24}
       showsVerticalScrollIndicator={false}
     >
-      <Hero
-        screen="ride"
-        title="Ride"
-        subtitle="Pre-ride checks, confidence, and safety essentials"
-      />
+      <Hero screen="ride" />
 
       <View style={[L1.sectionWrap, L1.sectionTop38]}>
         <Text

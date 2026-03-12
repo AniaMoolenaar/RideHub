@@ -32,6 +32,11 @@ type HeroConfig = {
   scale: number;
 };
 
+type SectionCopyRow = {
+  hero_title: string | null;
+  hero_subtitle: string | null;
+};
+
 type Props = {
   title?: string;
   subtitle?: string;
@@ -71,26 +76,42 @@ export default function Hero({
   const topPad = insets.top + 20;
 
   const [config, setConfig] = useState<HeroConfig | null>(null);
+  const [dbTitle, setDbTitle] = useState<string | null>(null);
+  const [dbSubtitle, setDbSubtitle] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
 
     async function loadHero() {
-      const { data, error } = await supabase
-        .from("hero_images")
-        .select("media_type, media_url, poster_url, offset_y, offset_x, scale")
-        .eq("screen", screen)
-        .single<HeroConfigRow>();
+      const [{ data: heroData, error: heroError }, { data: sectionData, error: sectionError }] =
+        await Promise.all([
+          supabase
+            .from("hero_images")
+            .select("media_type, media_url, poster_url, offset_y, offset_x, scale")
+            .eq("screen", screen)
+            .maybeSingle<HeroConfigRow>(),
+          supabase
+            .from("sections")
+            .select("hero_title, hero_subtitle")
+            .eq("slug", screen)
+            .maybeSingle<SectionCopyRow>(),
+        ]);
 
       if (!isActive) return;
 
-      if (error) {
-        console.error("Failed to load hero config:", error);
+      if (heroError) {
         setConfig(null);
-        return;
+      } else {
+        setConfig(normaliseHeroConfig(heroData ?? null));
       }
 
-      setConfig(normaliseHeroConfig(data));
+      if (sectionError) {
+        setDbTitle(null);
+        setDbSubtitle(null);
+      } else {
+        setDbTitle(sectionData?.hero_title ?? null);
+        setDbSubtitle(sectionData?.hero_subtitle ?? null);
+      }
     }
 
     loadHero();
@@ -128,7 +149,9 @@ export default function Hero({
     }
   );
 
-  const hasSubtitle = !!subtitle?.trim();
+  const resolvedTitle = title ?? dbTitle ?? undefined;
+  const resolvedSubtitle = subtitle ?? dbSubtitle ?? undefined;
+  const hasSubtitle = !!resolvedSubtitle?.trim();
 
   return (
     <View style={[styles.outer, { height: heroHeight }]}>
@@ -180,9 +203,9 @@ export default function Hero({
           </View>
         </View>
 
-        {(title || subtitle) ? (
+        {resolvedTitle || resolvedSubtitle ? (
           <View style={styles.bottomTextWrap}>
-            {!!title ? <Text style={styles.title}>{title}</Text> : null}
+            {!!resolvedTitle ? <Text style={styles.title}>{resolvedTitle}</Text> : null}
 
             {hasSubtitle ? (
               <Text
@@ -191,7 +214,7 @@ export default function Hero({
                   hideSubtitleVisual && styles.subtitleHidden,
                 ]}
               >
-                {subtitle}
+                {resolvedSubtitle}
               </Text>
             ) : null}
           </View>

@@ -52,7 +52,9 @@ export default function LoginScreen() {
       }
 
       const user = data?.user;
-      if (!user) {
+      const session = data?.session;
+
+      if (!user || !session) {
         setError("Login failed. Please try again.");
         return;
       }
@@ -63,19 +65,8 @@ export default function LoginScreen() {
         return;
       }
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        setError("Login worked but session was not created. Please try again.");
-        return;
-      }
-
       router.replace("/(tabs)");
-    } catch (e) {
-      console.error("Login error:", e);
+    } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -121,34 +112,36 @@ export default function LoginScreen() {
             paddingTop: 60,
           }}
         >
-          <View
-            style={{
-              alignItems: "flex-end",
-              marginBottom: 10,
-            }}
-          >
-            <Pressable
-              onPress={onBypass}
+          {__DEV__ ? (
+            <View
               style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.35)",
-                backgroundColor: "rgba(255,255,255,0.08)",
+                alignItems: "flex-end",
+                marginBottom: 10,
               }}
             >
-              <Text
+              <Pressable
+                onPress={onBypass}
                 style={{
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: "600",
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.35)",
+                  backgroundColor: "rgba(255,255,255,0.08)",
                 }}
               >
-                Bypass
-              </Text>
-            </Pressable>
-          </View>
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: "600",
+                  }}
+                >
+                  Bypass
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <Text
             style={{
@@ -218,11 +211,7 @@ export default function LoginScreen() {
             }}
           />
 
-          {error ? (
-            <Text style={{ color: "#ffb4b4", marginBottom: 12 }}>
-              {error}
-            </Text>
-          ) : null}
+          {error ? <Text style={{ color: "#ffb4b4", marginBottom: 12 }}>{error}</Text> : null}
 
           <Pressable
             onPress={onLogin}

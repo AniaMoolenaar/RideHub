@@ -74,8 +74,7 @@ export default function HomeScreen() {
           });
 
         setSavedTopics(ordered);
-      } catch (error) {
-        console.log("SAVED GRID ERROR:", error);
+      } catch {
         if (alive) setSavedTopics([]);
       }
     })();
@@ -107,8 +106,7 @@ export default function HomeScreen() {
 
         setSearchHits(data);
         setSearching(false);
-      } catch (error) {
-        console.log("SEARCH ERROR:", error);
+      } catch {
         if (!alive) return;
         setSearchHits([]);
         setSearching(false);
@@ -166,12 +164,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Hero
-          screen="home"
-          variant="home"
-          title="Ride with Confidence"
-          subtitle="Your complete guide to motorcycle ownership"
-        />
+        <Hero screen="home" variant="home" />
 
         <View style={L1.relativeWrap}>
           <HomeSearchBar

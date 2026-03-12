@@ -243,7 +243,7 @@ export default function LearnScreen() {
       contentContainerStyle={L1.scrollContent24}
       showsVerticalScrollIndicator={false}
     >
-      <Hero screen="learn" title="Learn" subtitle="Build knowledge at your own pace" />
+      <Hero screen="learn" />
 
       <View style={[L1.sectionWrap, L1.sectionTop38]}>
         <Text

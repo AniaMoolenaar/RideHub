@@ -13,15 +13,11 @@ const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-console.log("SUPABASE_URL =", supabaseUrl);
-console.log("SUPABASE_ANON_KEY length =", supabaseAnonKey?.length);
-console.log(
-  "SUPABASE ENV CHECK →",
-  supabaseUrl,
-  supabaseAnonKey?.slice(0, 15)
-);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables.");
+}
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     persistSession: true,

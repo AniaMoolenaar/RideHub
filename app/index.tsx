@@ -25,7 +25,7 @@ type EntryRow = {
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL;
 const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL;
 
-// DEV QUICK LOGIN (paste password locally; do not commit)
+// DEV QUICK LOGIN (local dev only)
 const DEV_EMAIL = "zaczek.ak@gmail.com";
 const DEV_PASSWORD = "Ania12568";
 
@@ -33,9 +33,7 @@ export default function Index() {
   const router = useRouter();
   const { height, width } = useWindowDimensions();
 
-  const [phase, setPhase] = useState<"splash" | "transition" | "discover">(
-    "splash"
-  );
+  const [phase, setPhase] = useState<"splash" | "transition" | "discover">("splash");
   const [loading, setLoading] = useState(true);
   const [sessionExists, setSessionExists] = useState<boolean | null>(null);
 
@@ -94,8 +92,7 @@ export default function Index() {
           },
         ];
 
-  const getSlideBg = (idx: number) =>
-    slides[idx]?.image_url ?? splashImageUrl ?? null;
+  const getSlideBg = (idx: number) => slides[idx]?.image_url ?? splashImageUrl ?? null;
 
   const openUrl = async (url?: string) => {
     if (!url) return;
@@ -106,13 +103,8 @@ export default function Index() {
   };
 
   const onDevQuickLogin = async () => {
+    if (!__DEV__) return;
     if (devLoginLoading) return;
-
-    console.log("DEV_PASSWORD_RUNTIME:", DEV_PASSWORD);
-
-    if (!DEV_PASSWORD || DEV_PASSWORD === "Ania12568") {
-      console.log("DEV QUICK LOGIN: using local DEV_PASSWORD from index.tsx");
-    }
 
     setDevLoginLoading(true);
 
@@ -122,21 +114,15 @@ export default function Index() {
         password: DEV_PASSWORD,
       });
 
-      if (error) {
-        console.log("DEV QUICK LOGIN ERROR:", error);
-        return;
-      }
+      if (error) return;
 
       const user = data.user;
+      const session = data.session;
 
-      if (!user) {
-        console.log("DEV QUICK LOGIN: no user returned");
-        return;
-      }
+      if (!user || !session) return;
 
       if (!user.email_confirmed_at) {
         await supabase.auth.signOut();
-        console.log("DEV QUICK LOGIN: email not verified");
         return;
       }
 
@@ -151,10 +137,12 @@ export default function Index() {
 
     const fetchData = async () => {
       try {
-        const sessionRes = await supabase.auth.getSession();
-        const entryRes = await supabase
-          .from("entry_screens")
-          .select("id,screen,slide_no,sort_order,image_url,headline,body");
+        const [sessionRes, entryRes] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase
+            .from("entry_screens")
+            .select("id,screen,slide_no,sort_order,image_url,headline,body"),
+        ]);
 
         if (!alive) return;
 
@@ -176,10 +164,8 @@ export default function Index() {
           setSplashImageUrl(splashUrl);
           setDiscoverSlides(discover);
 
-          if (!currentBgUrl) {
-            setCurrentBgReady(false);
-            setCurrentBgUrl(splashUrl);
-          }
+          setCurrentBgReady(false);
+          setCurrentBgUrl(splashUrl);
         }
       } finally {
         if (alive) {
@@ -193,7 +179,7 @@ export default function Index() {
     return () => {
       alive = false;
     };
-  }, [currentBgUrl]);
+  }, []);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -225,42 +211,52 @@ export default function Index() {
   useEffect(() => {
     const t = setTimeout(() => {
       setPhase("transition");
+
       Animated.timing(progress, {
         toValue: 1,
         duration: 950,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }).start(() => setPhase("discover"));
+      }).start(() => {
+        // Logged-in users should go straight to tabs after splash
+        if (!loading && sessionExists === true && !didNavigateRef.current) {
+          didNavigateRef.current = true;
+          router.replace("/(tabs)");
+          return;
+        }
+
+        setPhase("discover");
+      });
     }, 3000);
 
     return () => clearTimeout(t);
-  }, [progress]);
+  }, [progress, loading, sessionExists, router]);
 
   useEffect(() => {
     if (phase !== "discover") return;
 
     const firstUrl = getSlideBg(0);
     if (!firstUrl) return;
-    if (currentBgUrl && currentBgUrl === firstUrl) return;
+    if (currentBgUrl === firstUrl) return;
 
     setNextBgReady(false);
     bgFade.setValue(0);
     setNextBgUrl(firstUrl);
-  }, [phase]);
+  }, [phase, currentBgUrl, bgFade]);
 
   useEffect(() => {
-    if (phase === "splash") return;
+    // Fallback in case session check finishes slightly after the splash animation
+    if (phase !== "discover") return;
     if (loading) return;
     if (sessionExists !== true) return;
     if (didNavigateRef.current) return;
 
     didNavigateRef.current = true;
-    router.push("/(tabs)");
+    router.replace("/(tabs)");
   }, [phase, loading, sessionExists, router]);
 
   useEffect(() => {
-    if (!nextBgUrl) return;
-    if (!nextBgReady) return;
+    if (!nextBgUrl || !nextBgReady) return;
 
     bgFade.stopAnimation();
     Animated.timing(bgFade, {
@@ -296,6 +292,7 @@ export default function Index() {
   useEffect(() => {
     if (phase !== "discover") return;
     if (slides.length <= 1) return;
+    if (sessionExists === true) return;
 
     const interval = setInterval(() => {
       if (isAdvancingRef.current) return;
@@ -332,9 +329,10 @@ export default function Index() {
     }, 7000);
 
     return () => clearInterval(interval);
-  }, [phase, slides.length, activeSlide, currentBgUrl, slideFade, bgFade]);
+  }, [phase, slides.length, activeSlide, currentBgUrl, slideFade, bgFade, sessionExists]);
 
   const bgReadyForSplash = !!currentBgUrl && currentBgReady;
+  const showDiscoverUi = bgReadyForSplash && phase !== "splash" && sessionExists !== true;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
@@ -426,7 +424,7 @@ export default function Index() {
           </Animated.View>
         ) : null}
 
-        {bgReadyForSplash ? (
+        {__DEV__ && bgReadyForSplash ? (
           <View
             pointerEvents="box-none"
             style={{
@@ -455,18 +453,16 @@ export default function Index() {
               {devLoginLoading ? (
                 <ActivityIndicator />
               ) : (
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
-                  ⚡
-                </Text>
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>⚡</Text>
               )}
             </Pressable>
           </View>
         ) : null}
 
-        {bgReadyForSplash ? (
+        {showDiscoverUi ? (
           <Animated.View
             style={{ flex: 1, opacity: discoverOpacity }}
-            pointerEvents={phase === "splash" ? "none" : "auto"}
+            pointerEvents="auto"
           >
             <View
               style={{
@@ -597,14 +593,14 @@ export default function Index() {
                   </Text>
                 </Text>
               </View>
-
-              {phase !== "splash" && loading ? (
-                <View style={{ flex: 1, justifyContent: "center" }}>
-                  <ActivityIndicator />
-                </View>
-              ) : null}
             </View>
           </Animated.View>
+        ) : null}
+
+        {bgReadyForSplash && phase !== "splash" && sessionExists === true ? (
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <ActivityIndicator />
+          </View>
         ) : null}
       </View>
     </View>
