@@ -69,12 +69,14 @@ function TileCard({
   onPress,
   UI,
   d,
+  showPremiumSparkle,
 }: {
   item: Tile;
   width: number;
   onPress: () => void;
   UI: ReturnType<typeof useUI>;
   d: ReturnType<typeof getDesign>;
+  showPremiumSparkle: boolean;
 }) {
   return (
     <Pressable
@@ -99,7 +101,7 @@ function TileCard({
           />
         </View>
 
-        {item.is_premium ? (
+        {showPremiumSparkle && item.is_premium ? (
           <Sparkles size={18} color={d.premiumSparkle} style={L1.sparklePos} />
         ) : null}
 
@@ -124,6 +126,7 @@ export default function MaintainScreen() {
   const [error, setError] = useState<string | null>(null);
   const [totalArticles, setTotalArticles] = useState(0);
   const [completedArticles, setCompletedArticles] = useState(0);
+  const [hasTabAccess, setHasTabAccess] = useState(false);
 
   const loadScreen = useCallback(async () => {
     setLoading(true);
@@ -142,24 +145,44 @@ export default function MaintainScreen() {
         setGroups([]);
         setTotalArticles(0);
         setCompletedArticles(0);
+        setHasTabAccess(false);
         return;
       }
 
       const nextGroups = (groupData ?? []) as GroupRow[];
       setGroups(nextGroups);
 
-      const freeGroupIds = nextGroups.filter((g) => !g.is_premium).map((g) => g.id);
+      const groupIds = nextGroups.map((g) => g.id);
 
-      if (!freeGroupIds.length) {
+      if (!groupIds.length) {
         setTotalArticles(0);
         setCompletedArticles(0);
+        setHasTabAccess(false);
         return;
       }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      let access = false;
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium,has_maintain")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        access = !!profile?.is_premium || !!profile?.has_maintain;
+      }
+
+      setHasTabAccess(access);
 
       const { data: articleData, error: articleError } = await supabase
         .from("articles")
         .select("id")
-        .in("group_id", freeGroupIds)
+        .in("group_id", groupIds)
         .eq("tab", "maintain")
         .eq("is_published", true);
 
@@ -173,16 +196,7 @@ export default function MaintainScreen() {
       const articleIds = (articleData ?? []).map((a: any) => a.id as string);
       setTotalArticles(articleIds.length);
 
-      if (!articleIds.length) {
-        setCompletedArticles(0);
-        return;
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
+      if (!user || !articleIds.length) {
         setCompletedArticles(0);
         return;
       }
@@ -207,6 +221,7 @@ export default function MaintainScreen() {
       setGroups([]);
       setTotalArticles(0);
       setCompletedArticles(0);
+      setHasTabAccess(false);
     } finally {
       setLoading(false);
     }
@@ -289,6 +304,7 @@ export default function MaintainScreen() {
                     width={columnWidth}
                     UI={UI}
                     d={d}
+                    showPremiumSparkle={!hasTabAccess}
                     onPress={() =>
                       router.push({
                         pathname: "/maintain-group/[groupId]",
@@ -310,6 +326,7 @@ export default function MaintainScreen() {
                     width={columnWidth}
                     UI={UI}
                     d={d}
+                    showPremiumSparkle={!hasTabAccess}
                     onPress={() =>
                       router.push({
                         pathname: "/maintain-group/[groupId]",

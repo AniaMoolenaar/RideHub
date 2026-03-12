@@ -6,13 +6,14 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  Alert,
 } from "react-native";
+import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronLeft,
-  Sparkles,
   Shield,
   ScrollText,
   RefreshCcw,
@@ -20,6 +21,8 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  Info,
+  LifeBuoy,
 } from "lucide-react-native";
 
 import { useAppTheme, themeTokens } from "../../src/theme/theme";
@@ -96,8 +99,17 @@ export default function SettingsScreen() {
   const t = themeTokens(isDark);
   const d = getDesign(isDark);
 
-  // Prototype placeholder (wire later)
-  const isPremium = false;
+  const appVersion =
+    Constants.expoConfig?.version ||
+    Constants.manifest2?.extra?.expoClient?.version ||
+    "Unknown";
+
+  const onRestorePurchases = () => {
+    Alert.alert(
+      "Restore purchases",
+      "Purchase restore will be connected when RevenueCat is added. For now, this screen is a placeholder only."
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: t.screenBg }]}>
@@ -118,7 +130,6 @@ export default function SettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
@@ -136,17 +147,7 @@ export default function SettingsScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Purchases */}
         <Text style={[styles.sectionTitle, { color: t.textMuted }]}>Purchases</Text>
-
-        <TileRow
-          t={t}
-          icon={<Sparkles size={18} color={t.text} />}
-          title="Premium"
-          subtitle={isPremium ? "Active" : "Not active"}
-          right={<ChevronRight size={18} color={t.textMuted} />}
-          onPress={() => {}}
-        />
 
         <TileRow
           t={t}
@@ -154,7 +155,7 @@ export default function SettingsScreen() {
           title="Purchased content"
           subtitle="View what you own"
           right={<ChevronRight size={18} color={t.textMuted} />}
-          onPress={() => {}}
+          onPress={() => router.push("/menu/purchased-content")}
         />
 
         <TileRow
@@ -163,10 +164,20 @@ export default function SettingsScreen() {
           title="Restore purchases"
           subtitle="If you already paid"
           right={<ChevronRight size={18} color={t.textMuted} />}
-          onPress={() => {}}
+          onPress={onRestorePurchases}
         />
 
-        {/* Safety & Legal */}
+        <Text style={[styles.sectionTitle, { color: t.textMuted }]}>Support</Text>
+
+        <TileRow
+          t={t}
+          icon={<LifeBuoy size={18} color={t.text} />}
+          title="Contact support"
+          subtitle="Send a support request"
+          right={<ChevronRight size={18} color={t.textMuted} />}
+          onPress={() => router.push("/menu/support")}
+        />
+
         <Text style={[styles.sectionTitle, { color: t.textMuted }]}>
           Safety & Legal
         </Text>
@@ -189,7 +200,6 @@ export default function SettingsScreen() {
           onPress={() => router.push("/menu/privacy-policy")}
         />
 
-        {/* Account */}
         <Text style={[styles.sectionTitle, { color: t.textMuted }]}>Account</Text>
 
         <TileRow
@@ -209,8 +219,23 @@ export default function SettingsScreen() {
           right={<ChevronRight size={18} color={t.textMuted} />}
           onPress={async () => {
             await supabase.auth.signOut();
-            router.replace("/"); // discovery start (or "/(auth)/login")
+            router.replace("/");
           }}
+        />
+
+        <Text style={[styles.sectionTitle, { color: t.textMuted }]}>About</Text>
+
+        <TileRow
+          t={t}
+          icon={<Info size={18} color={t.text} />}
+          title="App version"
+          subtitle="Installed build"
+          disabled
+          right={
+            <Text style={[styles.versionText, { color: t.textMuted }]}>
+              {appVersion}
+            </Text>
+          }
         />
 
         <View style={{ height: 10 }} />
@@ -229,15 +254,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 14,
   },
+
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 0,
   },
-  headerTitle: { fontSize: 16, fontWeight: "900" },
+
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
 
   sectionTitle: {
     fontSize: 12,
@@ -254,7 +284,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
     marginBottom: 10,
     ...Platform.select({
       ios: {
@@ -266,8 +296,14 @@ const styles = StyleSheet.create({
       android: { elevation: 0 },
     }),
   },
-  tileRowPressed: { opacity: 0.98 },
-  tileRowDisabled: { opacity: 0.55 },
+
+  tileRowPressed: {
+    opacity: 0.98,
+  },
+
+  tileRowDisabled: {
+    opacity: 0.75,
+  },
 
   tileRowIcon: {
     width: 38,
@@ -277,8 +313,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tileRowTitle: { fontSize: 13, fontWeight: "900" },
-  tileRowSub: { marginTop: 3, fontSize: 11 },
 
-  tileRowRight: { justifyContent: "center", alignItems: "flex-end" },
+  tileRowTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  tileRowSub: {
+    marginTop: 3,
+    fontSize: 11,
+  },
+
+  tileRowRight: {
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+
+  versionText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
 });

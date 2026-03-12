@@ -1,13 +1,8 @@
-// src/styles/level3.ts
 import { StyleSheet, Platform } from "react-native";
 
-export const L3_SECTION_GAP = 14;
+export const L3_SECTION_GAP = 16;
 
 export const L3 = StyleSheet.create({
-  /* ===============================
-     HEADER
-  =============================== */
-
   headerRow: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -39,18 +34,18 @@ export const L3 = StyleSheet.create({
     width: 40,
   },
 
-  /* ===============================
-     ARTICLE CARD
-  =============================== */
-
   articleWrap: {
     paddingHorizontal: 16,
   },
 
   sectionWrap: {},
 
+  sectionGap: {
+    marginBottom: L3_SECTION_GAP,
+  },
+
   card: {
-    paddingVertical: 18,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 0,
@@ -67,17 +62,14 @@ export const L3 = StyleSheet.create({
 
   cardTitle: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-
-  /* ===============================
-     ACTIONS
-  =============================== */
 
   actionsWrap: {
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 20,
     paddingBottom: 8,
   },
 
@@ -113,10 +105,6 @@ export const L3 = StyleSheet.create({
     lineHeight: 16,
     opacity: 0.9,
   },
-
-  /* ===============================
-     UTILITIES
-  =============================== */
 
   absoluteFill: {
     position: "absolute",

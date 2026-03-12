@@ -136,9 +136,101 @@ export default function RideArticleScreen() {
   const cardBorder = d.articleCardBorder;
 
   const mdStyles = {
-    body: { color: textColor, fontSize: 14, lineHeight: 22 },
-    paragraph: { color: textColor, fontSize: 14, lineHeight: 22, marginBottom: 10 },
-    strong: { fontWeight: "800" },
+    body: {
+      color: textColor,
+      fontSize: 14,
+      lineHeight: 22,
+    },
+    paragraph: {
+      color: textColor,
+      fontSize: 14,
+      lineHeight: 22,
+      marginBottom: 12,
+    },
+    strong: {
+      fontWeight: "800",
+    },
+    em: {
+      fontStyle: "italic",
+    },
+    bullet_list: {
+      marginBottom: 12,
+    },
+    ordered_list: {
+      marginBottom: 12,
+    },
+    list_item: {
+      marginBottom: 6,
+      color: textColor,
+      fontSize: 14,
+      lineHeight: 22,
+    },
+    heading1: {
+      color: t.text,
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: "800",
+      marginTop: 2,
+      marginBottom: 12,
+    },
+    heading2: {
+      color: t.text,
+      fontSize: 18,
+      lineHeight: 24,
+      fontWeight: "800",
+      marginTop: 2,
+      marginBottom: 10,
+    },
+    heading3: {
+      color: t.text,
+      fontSize: 16,
+      lineHeight: 22,
+      fontWeight: "800",
+      marginTop: 2,
+      marginBottom: 8,
+    },
+    blockquote: {
+      borderLeftWidth: 3,
+      borderLeftColor: t.pillBorder,
+      paddingLeft: 12,
+      marginBottom: 12,
+      opacity: 0.96,
+    },
+    code_inline: {
+      backgroundColor: t.pillBg,
+      color: t.text,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      fontSize: 13,
+    },
+    code_block: {
+      backgroundColor: t.pillBg,
+      color: t.text,
+      padding: 12,
+      borderRadius: 12,
+      fontSize: 13,
+      lineHeight: 19,
+      marginBottom: 12,
+    },
+    fence: {
+      backgroundColor: t.pillBg,
+      color: t.text,
+      padding: 12,
+      borderRadius: 12,
+      fontSize: 13,
+      lineHeight: 19,
+      marginBottom: 12,
+    },
+    link: {
+      color: t.text,
+      textDecorationLine: "underline",
+    },
+    hr: {
+      backgroundColor: t.pillBorder,
+      height: 1,
+      marginVertical: 14,
+    },
   } as any;
 
   const heroTitle = article?.group_title ?? "Ride";
@@ -176,18 +268,24 @@ export default function RideArticleScreen() {
           <EmptyState message="This article has no content yet." />
         ) : (
           sections.map((s, i) => (
-            <View key={i} style={{ marginBottom: 20 }}>
+            <View
+              key={i}
+              style={[
+                L3.sectionWrap,
+                i < sections.length - 1 && L3.sectionGap,
+              ]}
+            >
               <View
                 style={[
                   L3.card,
                   { backgroundColor: cardBg, borderColor: cardBorder },
                 ]}
               >
-                {!!s.heading && (
+                {!!s.heading ? (
                   <Text style={[L3.cardTitle, { color: t.text }]}>
                     {s.heading}
                   </Text>
-                )}
+                ) : null}
 
                 <Markdown style={mdStyles}>{s.body.trim()}</Markdown>
               </View>
@@ -195,8 +293,6 @@ export default function RideArticleScreen() {
           ))
         )}
       </View>
-
-      {/* CTA BUTTONS */}
 
       <View style={L3.actionsWrap}>
         <View style={L3.actionsRow}>
